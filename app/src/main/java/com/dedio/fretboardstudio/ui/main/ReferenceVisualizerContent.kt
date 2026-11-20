@@ -247,7 +247,7 @@ fun ReferenceVisualizerContent(
                     .map { note ->
                     note.copy(
                         isInScale = true,
-                        isTargetNote = false,
+                        isTargetNote = note.triadRole == com.dedio.fretboardstudio.model.TriadRole.ROOT,
                         isHighlightedRoot = false,
                         isInSelectedVoicing = false,
                         scaleDegreeLabel = triadDegreeLabel(note.triadRole, state.selectedTriadType)
