@@ -10,7 +10,7 @@
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.TriadGuitar">
         <activity
-            android:name="com.example.triadguitar.MainActivity"
+            android:name="com.dedio.fretboardstudio.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

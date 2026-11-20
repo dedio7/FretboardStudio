@@ -5,10 +5,10 @@ plugins {
 }
 
 android {
-    namespace = "com.fretboardstudio.app"
+    namespace = "com.dedio.fretboardstudio"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.fretboardstudio.app"
+        applicationId = "com.dedio.fretboardstudio"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
