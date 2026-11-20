@@ -1,6 +1,8 @@
 package com.dedio.fretboardstudio.ui
 
 import androidx.lifecycle.ViewModel
+import com.dedio.fretboardstudio.model.ChordDictionaryRepository
+import com.dedio.fretboardstudio.model.ChordTypeInfo
 import com.dedio.fretboardstudio.model.DotLabelMode
 import com.dedio.fretboardstudio.model.FretNote
 import com.dedio.fretboardstudio.model.GuitarConstants
@@ -10,13 +12,23 @@ import com.dedio.fretboardstudio.model.UiLanguage
 import com.dedio.fretboardstudio.model.Pitch
 import com.dedio.fretboardstudio.model.ScaleType
 import com.dedio.fretboardstudio.model.TriadCalculator
+import com.dedio.fretboardstudio.model.TriadInversion
+import com.dedio.fretboardstudio.model.TriadType
 import com.dedio.fretboardstudio.model.VisualTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+enum class VisualizerMode { SCALES, TRIADS, DICTIONARY }
+
 data class TriadUiState(
+    val visualizerMode: VisualizerMode = VisualizerMode.SCALES,
+    val selectedTriadType: TriadType = TriadType.MAJOR,
+    val selectedInversion: TriadInversion = TriadInversion.ALL,
+    val selectedDictionaryRoot: Pitch = Pitch(0),
+    val selectedDictionaryType: ChordTypeInfo = ChordDictionaryRepository.ALL_TYPES.first(),
+    val selectedDictionaryPosition: Int = 0,
     val selectedRoot: Pitch = Pitch(0),
     val selectedScale: ScaleType = ScaleType.MAJOR,
     val selectedPositions: Set<Int> = emptySet(),
@@ -46,7 +58,7 @@ class TriadViewModel : ViewModel() {
         _uiState.update { current ->
             val notes = TriadCalculator.calculateAllFretNotes(
                 rootPitch = current.selectedRoot,
-                triadType = null,
+                triadType = current.selectedTriadType,
                 scaleType = current.selectedScale,
                 tuning = current.selectedTuning,
                 selectedBaseString = current.selectedBaseString,
@@ -54,6 +66,44 @@ class TriadViewModel : ViewModel() {
             )
             current.copy(allFretNotes = notes)
         }
+    }
+
+    fun setVisualizerMode(mode: VisualizerMode) {
+        _uiState.update { it.copy(visualizerMode = mode) }
+    }
+
+    fun selectTriadType(type: TriadType) {
+        _uiState.update { it.copy(visualizerMode = VisualizerMode.TRIADS, selectedTriadType = type) }
+        recalculate()
+    }
+
+    fun selectInversion(inversion: TriadInversion) {
+        _uiState.update { it.copy(visualizerMode = VisualizerMode.TRIADS, selectedInversion = inversion) }
+    }
+
+    fun selectDictionaryRoot(pitch: Pitch) {
+        _uiState.update {
+            it.copy(
+                visualizerMode = VisualizerMode.DICTIONARY,
+                selectedDictionaryRoot = pitch,
+                selectedDictionaryPosition = 0
+            )
+        }
+    }
+
+    fun selectDictionaryType(type: ChordTypeInfo) {
+        _uiState.update {
+            it.copy(
+                visualizerMode = VisualizerMode.DICTIONARY,
+                selectedDictionaryType = type,
+                selectedDictionaryPosition = 0
+            )
+        }
+    }
+
+    fun selectDictionaryPosition(position: Int) {
+        if (position < 0) return
+        _uiState.update { it.copy(visualizerMode = VisualizerMode.DICTIONARY, selectedDictionaryPosition = position) }
     }
 
     fun selectRoot(pitch: Pitch) {
@@ -117,7 +167,7 @@ class TriadViewModel : ViewModel() {
 
     fun selectBaseString(stringNumber: Int) {
         if (stringNumber !in 1..6) return
-        _uiState.update { it.copy(selectedBaseString = stringNumber) }
+        _uiState.update { it.copy(visualizerMode = VisualizerMode.TRIADS, selectedBaseString = stringNumber) }
         recalculate()
     }
 

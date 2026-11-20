@@ -45,5 +45,16 @@ enum class VisualTheme(
         surfaceColor = Color(0xFFFFFCF5),
         cardBorderColor = Color(0xFFE8D8BE),
         fretboardBgColor = Color(0xFF704552)
+    ),
+    VIBRANT(
+        title = "Vibrant Pop",
+        description = "Corallo, turchese e giallo su uno sfondo blu notte",
+        primaryColor = Color(0xFFFF5C8A),
+        secondaryColor = Color(0xFFFFD166),
+        tertiaryColor = Color(0xFF42E2B8),
+        backgroundColor = Color(0xFF101426),
+        surfaceColor = Color(0xFF1B2340),
+        cardBorderColor = Color(0xFF354269),
+        fretboardBgColor = Color(0xFF263557)
     )
 }

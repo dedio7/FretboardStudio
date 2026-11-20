@@ -48,5 +48,6 @@ class UiStrings(private val language: UiLanguage) {
             VisualTheme.DEFAULT -> "A dark studio with cyan, warm gold, and magenta"
             VisualTheme.NEON -> "Cyberpunk contrast with violet, lime, and electric pink"
             VisualTheme.PLAYFUL -> "Cream, berry, mango, and mint with a cherrywood fretboard"
+            VisualTheme.VIBRANT -> "Coral, turquoise, and yellow over midnight blue"
         }
 }

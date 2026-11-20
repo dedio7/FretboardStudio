@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,12 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,14 +41,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dedio.fretboardstudio.model.BadgeDisplayMode
+import com.dedio.fretboardstudio.model.ChordDictionaryRepository
 import com.dedio.fretboardstudio.model.DotLabelMode
 import com.dedio.fretboardstudio.model.FretboardDisplayScope
 import com.dedio.fretboardstudio.model.FretboardOrientation
 import com.dedio.fretboardstudio.model.TriadCalculator
-import com.dedio.fretboardstudio.model.TriadType
 import com.dedio.fretboardstudio.model.UiStrings
 import com.dedio.fretboardstudio.ui.TriadUiState
 import com.dedio.fretboardstudio.ui.TriadViewModel
+import com.dedio.fretboardstudio.ui.VisualizerMode
 import com.dedio.fretboardstudio.ui.components.FretboardView
 import com.dedio.fretboardstudio.ui.components.TuningSelector
 
@@ -58,10 +62,16 @@ fun ReferenceVisualizerContent(
 ) {
     val state: TriadUiState = viewModel.uiState.collectAsStateWithLifecycle().value
     var controlsVisible by rememberSaveable { mutableStateOf(value = true) }
+    var chordPanelVisible by rememberSaveable { mutableStateOf(false) }
     val controlsWeight by animateFloatAsState(
         targetValue = if (controlsVisible) 0.48f else 0f,
         animationSpec = tween(durationMillis = 280),
         label = "controls_panel_width",
+    )
+    val chordPanelWeight by animateFloatAsState(
+        targetValue = if (chordPanelVisible) 0.48f else 0f,
+        animationSpec = tween(durationMillis = 280),
+        label = "chord_panel_width",
     )
 
     Row(
@@ -70,7 +80,7 @@ fun ReferenceVisualizerContent(
             .clipToBounds()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (controlsVisible) 6.dp else 0.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (controlsVisible || chordPanelVisible) 6.dp else 0.dp)
     ) {
             Column(
                 modifier = Modifier
@@ -87,7 +97,11 @@ fun ReferenceVisualizerContent(
             ) {
                 val strings = UiStrings(state.language)
                 Text(
-                    text = "${state.selectedRoot.getDisplayName(state.notation)} ${strings.scaleTitle(state.selectedScale)}",
+                    text = when (state.visualizerMode) {
+                        VisualizerMode.TRIADS -> "${state.selectedRoot.getDisplayName(state.notation)} ${state.selectedTriadType.title}"
+                        VisualizerMode.DICTIONARY -> "${state.selectedDictionaryRoot.getDisplayName(state.notation)} ${state.selectedDictionaryType.name} ${state.selectedDictionaryType.symbol}"
+                        VisualizerMode.SCALES -> "${state.selectedRoot.getDisplayName(state.notation)} ${strings.scaleTitle(state.selectedScale)}"
+                    },
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
@@ -101,6 +115,14 @@ fun ReferenceVisualizerContent(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                ControlLabel(strings.rootNote)
+                RootNoteGrid(
+                    selectedRoot = state.selectedRoot,
+                    notation = state.notation,
+                    onRootSelected = viewModel::selectRoot
+                )
+
+                if (state.visualizerMode == VisualizerMode.SCALES) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,13 +149,8 @@ fun ReferenceVisualizerContent(
                     )
                 }
 
-                ControlLabel(strings.rootNote)
-                RootNoteGrid(
-                    selectedRoot = state.selectedRoot,
-                    notation = state.notation,
-                    onRootSelected = viewModel::selectRoot
-                )
-
+                }
+                if (state.visualizerMode == VisualizerMode.SCALES) {
                 val usesPentatonicBoxes = state.selectedScale in setOf(
                     com.dedio.fretboardstudio.model.ScaleType.MAJOR_PENTATONIC,
                     com.dedio.fretboardstudio.model.ScaleType.MINOR_PENTATONIC,
@@ -201,16 +218,73 @@ fun ReferenceVisualizerContent(
                         }
                     }
                 }
+                }
 
             }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
-                    .weight((1f - controlsWeight).coerceAtLeast(0.001f))
+                    .weight((1f - controlsWeight - chordPanelWeight).coerceAtLeast(0.001f))
                     .fillMaxHeight()
             ) {
-            FretboardView(
-                allNotes = state.allFretNotes
+            val boardWidth = maxWidth.coerceAtMost((maxHeight * 0.42f).coerceAtMost(320.dp))
+            val dictionaryDiagrams = remember(state.selectedDictionaryRoot, state.selectedDictionaryType, state.notation) {
+                ChordDictionaryRepository.getDiagramsForChord(
+                    state.selectedDictionaryRoot,
+                    state.selectedDictionaryType,
+                    state.notation
+                )
+            }
+            val triadNotes = remember(state.selectedRoot, state.selectedTriadType, state.selectedTuning, state.selectedBaseString, state.selectedInversion) {
+                TriadCalculator.findVoicings(
+                    rootPitch = state.selectedRoot,
+                    triadType = state.selectedTriadType,
+                    stringSet = TriadCalculator.getStringSetForBaseString(state.selectedBaseString),
+                    tuning = state.selectedTuning
+                ).filter { state.selectedInversion == com.dedio.fretboardstudio.model.TriadInversion.ALL || it.inversion == state.selectedInversion }
+                    .flatMap { it.notes }
+                    .distinctBy { it.stringNumber to it.fret }
+                    .map { note ->
+                    note.copy(
+                        isInScale = true,
+                        isTargetNote = false,
+                        isHighlightedRoot = false,
+                        isInSelectedVoicing = false,
+                        scaleDegreeLabel = triadDegreeLabel(note.triadRole, state.selectedTriadType)
+                    )
+                }
+            }
+            val fretboardNotes = when (state.visualizerMode) {
+                VisualizerMode.TRIADS -> triadNotes
+                VisualizerMode.DICTIONARY -> {
+                    val selectedDiagram = dictionaryDiagrams.getOrNull(state.selectedDictionaryPosition)
+                    if (selectedDiagram != null) {
+                        val positionNotes = selectedDiagram.stringFrets.mapIndexedNotNull { index, fret ->
+                            if (fret < 0) null else (6 - index) to fret
+                        }.toSet()
+                        state.allFretNotes.filter { (it.stringNumber to it.fret) in positionNotes }
+                            .map { note ->
+                                val offset = (note.pitch.semitone - state.selectedDictionaryRoot.semitone + 12) % 12
+                                val interval = state.selectedDictionaryType.intervals.firstOrNull {
+                                    ((it % 12) + 12) % 12 == offset
+                                } ?: offset
+                                note.copy(isInScale = true, isTargetNote = true, scaleDegreeLabel = chordDegreeLabel(interval))
+                            }
+                    } else {
+                        val chordIntervals = state.selectedDictionaryType.intervals
+                        state.allFretNotes.mapNotNull { note ->
+                            val offset = (note.pitch.semitone - state.selectedDictionaryRoot.semitone + 12) % 12
+                            val interval = chordIntervals.firstOrNull { ((it % 12) + 12) % 12 == offset }
+                                ?: return@mapNotNull null
+                            note.copy(
+                                isInScale = true,
+                                isTargetNote = true,
+                                scaleDegreeLabel = chordDegreeLabel(interval)
+                            )
+                        }
+                    }
+                }
+                VisualizerMode.SCALES -> state.allFretNotes
                     .filter { note ->
                         state.showTuningNotes || TriadCalculator.isNoteInAnyScalePosition(
                             note = note,
@@ -230,12 +304,19 @@ fun ReferenceVisualizerContent(
                             ) + 1
                             note.copy(isTargetNote = degree in state.selectedTargetDegrees)
                         }
-                    },
+                    }
+            }
+            FretboardView(
+                allNotes = fretboardNotes,
                 notation = state.notation,
-                triadType = TriadType.MAJOR,
-                badgeDisplayMode = BadgeDisplayMode.NOTE_ONLY,
-                dotLabelMode = if (state.showTuningNotes) DotLabelMode.NOTES else state.dotLabelMode,
-                showChordTargets = false,
+                triadType = state.selectedTriadType,
+                badgeDisplayMode = if (state.visualizerMode == VisualizerMode.TRIADS) BadgeDisplayMode.BOTH else BadgeDisplayMode.NOTE_ONLY,
+                dotLabelMode = when (state.visualizerMode) {
+                    VisualizerMode.DICTIONARY -> DotLabelMode.INTERVALS
+                    VisualizerMode.SCALES -> if (state.showTuningNotes) DotLabelMode.NOTES else state.dotLabelMode
+                    VisualizerMode.TRIADS -> state.dotLabelMode
+                },
+                showChordTargets = state.visualizerMode == VisualizerMode.DICTIONARY,
                 displayScope = FretboardDisplayScope.FULL_NECK,
                 selectedBaseString = state.selectedBaseString,
                 showFingerHints = false,
@@ -246,11 +327,37 @@ fun ReferenceVisualizerContent(
                 isLeftHanded = state.isLeftHanded,
                 highlightSelectedString = false,
                 modifier = Modifier
-                    .fillMaxWidth(if (controlsVisible) 1f else 0.88f)
+                    .width(boardWidth)
                     .fillMaxHeight()
                     .align(Alignment.Center)
             )
 
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+                    .size(width = 30.dp, height = 52.dp)
+                    .clip(RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+                    .background(Color(0xCC12121A))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f), RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+                    .clickable {
+                        if (chordPanelVisible) {
+                            chordPanelVisible = false
+                        } else {
+                            controlsVisible = false
+                            viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+                            chordPanelVisible = true
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (chordPanelVisible) "›" else "‹",
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -259,7 +366,15 @@ fun ReferenceVisualizerContent(
                     .clip(RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
                     .background(Color(0xCC12121A))
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
-                    .clickable { controlsVisible = !controlsVisible },
+                    .clickable {
+                        if (controlsVisible) {
+                            controlsVisible = false
+                        } else {
+                            chordPanelVisible = false
+                            viewModel.setVisualizerMode(VisualizerMode.SCALES)
+                            controlsVisible = true
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -270,7 +385,50 @@ fun ReferenceVisualizerContent(
                 )
             }
             }
+            if (chordPanelWeight > 0f) {
+                ChordToolsPanel(
+                    state = state,
+                    viewModel = viewModel,
+                    modifier = Modifier
+                        .weight(chordPanelWeight.coerceAtLeast(0.001f))
+                        .fillMaxHeight()
+                )
+            }
         }
+}
+
+private fun triadDegreeLabel(role: com.dedio.fretboardstudio.model.TriadRole?, type: com.dedio.fretboardstudio.model.TriadType): String? = when (role) {
+    null -> null
+    com.dedio.fretboardstudio.model.TriadRole.ROOT -> "1"
+    com.dedio.fretboardstudio.model.TriadRole.THIRD -> when (type.intervals[1]) {
+        2 -> "2"
+        5 -> "4"
+        else -> if (type.isMinorThird) "♭3" else "3"
+    }
+    com.dedio.fretboardstudio.model.TriadRole.FIFTH -> when {
+        type.isDiminishedFifth -> "♭5"
+        type.isAugmentedFifth -> "♯5"
+        else -> "5"
+    }
+}
+
+private fun chordDegreeLabel(interval: Int): String = when (interval) {
+    0 -> "1"
+    1 -> "♭9"
+    2 -> "9"
+    3 -> "♭3"
+    4 -> "3"
+    5 -> "4"
+    6 -> "♭5"
+    7 -> "5"
+    8 -> "♯5"
+    9 -> "6"
+    10 -> "♭7"
+    11 -> "7"
+    14 -> "9"
+    17 -> "11"
+    21 -> "13"
+    else -> interval.toString()
 }
 
 @Composable
