@@ -36,6 +36,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,10 +55,14 @@ import com.dedio.fretboardstudio.model.UiStrings
 import com.dedio.fretboardstudio.ui.TriadUiState
 import com.dedio.fretboardstudio.ui.TriadViewModel
 import com.dedio.fretboardstudio.ui.VisualizerMode
+import com.dedio.fretboardstudio.ui.selectedChordSlot
 import com.dedio.fretboardstudio.ui.components.FretboardView
 import com.dedio.fretboardstudio.ui.components.TuningSelector
 
 private val VisualizerMuted = Color(0xFF777786)
+
+/** A single source of truth for the side panel: opening one always closes the other. */
+private enum class SidePanel { NONE, CONTROLS, CHORDS }
 
 @Composable
 fun ReferenceVisualizerContent(
@@ -61,15 +70,21 @@ fun ReferenceVisualizerContent(
     modifier: Modifier = Modifier,
 ) {
     val state: TriadUiState = viewModel.uiState.collectAsStateWithLifecycle().value
-    var controlsVisible by rememberSaveable { mutableStateOf(value = true) }
-    var chordPanelVisible by rememberSaveable { mutableStateOf(false) }
+    var activePanel by rememberSaveable { mutableStateOf(SidePanel.CONTROLS) }
+    val focusManager = LocalFocusManager.current
+
+    val closeChordPanel: () -> Unit = {
+        activePanel = SidePanel.NONE
+        focusManager.clearFocus()
+    }
+
     val controlsWeight by animateFloatAsState(
-        targetValue = if (controlsVisible) 0.48f else 0f,
+        targetValue = if (activePanel == SidePanel.CONTROLS) 0.48f else 0f,
         animationSpec = tween(durationMillis = 280),
         label = "controls_panel_width",
     )
     val chordPanelWeight by animateFloatAsState(
-        targetValue = if (chordPanelVisible) 0.48f else 0f,
+        targetValue = if (activePanel == SidePanel.CHORDS) 0.48f else 0f,
         animationSpec = tween(durationMillis = 280),
         label = "chord_panel_width",
     )
@@ -80,13 +95,14 @@ fun ReferenceVisualizerContent(
             .clipToBounds()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (controlsVisible || chordPanelVisible) 6.dp else 0.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (activePanel != SidePanel.NONE) 6.dp else 0.dp)
     ) {
             Column(
                 modifier = Modifier
                     .weight(controlsWeight.coerceAtLeast(0.001f))
                     .graphicsLayer {
                         val visibleFraction = (controlsWeight / 0.48f).coerceIn(0f, 1f)
+                        alpha = visibleFraction
                         translationX = -size.width * (1f - visibleFraction)
                     }
                     .fillMaxHeight()
@@ -98,7 +114,19 @@ fun ReferenceVisualizerContent(
                 val strings = UiStrings(state.language)
                 Text(
                     text = when (state.visualizerMode) {
-                        VisualizerMode.TRIADS -> "${state.selectedRoot.getDisplayName(state.notation)} ${state.selectedTriadType.title}"
+                        VisualizerMode.TRIADS -> {
+                            val title = state.selectedChordSlot?.displayTitle(state.notation, state.language).orEmpty()
+                            if (state.triadSequenceSlots.size == 1) {
+                                title
+                            } else {
+                                val count = if (state.language == com.dedio.fretboardstudio.model.UiLanguage.ITALIAN) {
+                                    " · ${state.triadSequenceSlots.size} accordi"
+                                } else {
+                                    " · ${state.triadSequenceSlots.size} chords"
+                                }
+                                title + count
+                            }
+                        }
                         VisualizerMode.DICTIONARY -> "${state.selectedDictionaryRoot.getDisplayName(state.notation)} ${state.selectedDictionaryType.name} ${state.selectedDictionaryType.symbol}"
                         VisualizerMode.SCALES -> "${state.selectedRoot.getDisplayName(state.notation)} ${strings.scaleTitle(state.selectedScale)}"
                     },
@@ -195,15 +223,8 @@ fun ReferenceVisualizerContent(
                 )
 
                 ControlLabel(strings.targetNotes)
-                val allDegrees = (1..state.selectedScale.degreeLabels.size).toSet()
                 val targetRows = state.selectedScale.degreeLabels.withIndex().toList().chunked(4)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SegmentedChip(
-                        text = strings.allTargets,
-                        selected = state.selectedTargetDegrees == allDegrees,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = viewModel::toggleAllTargetDegrees
-                    )
                     targetRows.forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                             row.forEach { entry ->
@@ -235,27 +256,8 @@ fun ReferenceVisualizerContent(
                     state.notation
                 )
             }
-            val triadNotes = remember(state.selectedRoot, state.selectedTriadType, state.selectedTuning, state.selectedBaseString, state.selectedInversion) {
-                TriadCalculator.findVoicings(
-                    rootPitch = state.selectedRoot,
-                    triadType = state.selectedTriadType,
-                    stringSet = TriadCalculator.getStringSetForBaseString(state.selectedBaseString),
-                    tuning = state.selectedTuning
-                ).filter { state.selectedInversion == com.dedio.fretboardstudio.model.TriadInversion.ALL || it.inversion == state.selectedInversion }
-                    .flatMap { it.notes }
-                    .distinctBy { it.stringNumber to it.fret }
-                    .map { note ->
-                    note.copy(
-                        isInScale = true,
-                        isTargetNote = note.triadRole == com.dedio.fretboardstudio.model.TriadRole.ROOT,
-                        isHighlightedRoot = false,
-                        isInSelectedVoicing = false,
-                        scaleDegreeLabel = triadDegreeLabel(note.triadRole, state.selectedTriadType)
-                    )
-                }
-            }
             val fretboardNotes = when (state.visualizerMode) {
-                VisualizerMode.TRIADS -> triadNotes
+                VisualizerMode.TRIADS -> state.allFretNotes
                 VisualizerMode.DICTIONARY -> {
                     val selectedDiagram = dictionaryDiagrams.getOrNull(state.selectedDictionaryPosition)
                     if (selectedDiagram != null) {
@@ -326,6 +328,7 @@ fun ReferenceVisualizerContent(
                 orientation = FretboardOrientation.VERTICAL,
                 isLeftHanded = state.isLeftHanded,
                 highlightSelectedString = false,
+                highlightTonic = state.highlightTonic,
                 modifier = Modifier
                     .width(boardWidth)
                     .fillMaxHeight()
@@ -336,23 +339,32 @@ fun ReferenceVisualizerContent(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 4.dp)
-                    .size(width = 30.dp, height = 52.dp)
+                    .size(width = 34.dp, height = 56.dp)
                     .clip(RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
                     .background(Color(0xCC12121A))
                     .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f), RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
                     .clickable {
-                        if (chordPanelVisible) {
-                            chordPanelVisible = false
+                        if (activePanel == SidePanel.CHORDS) {
+                            closeChordPanel()
                         } else {
-                            controlsVisible = false
+                            focusManager.clearFocus()
+                            activePanel = SidePanel.CHORDS
+                            // Make sure the selected chord is what the fretboard shows.
                             viewModel.setVisualizerMode(VisualizerMode.TRIADS)
-                            chordPanelVisible = true
                         }
+                    }
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = if (activePanel == SidePanel.CHORDS) {
+                            "Chiudi pannello accordi"
+                        } else {
+                            "Apri pannello accordi"
+                        }
+                        role = Role.Button
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (chordPanelVisible) "›" else "‹",
+                    text = if (activePanel == SidePanel.CHORDS) "›" else "‹",
                     color = MaterialTheme.colorScheme.secondary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
@@ -362,54 +374,54 @@ fun ReferenceVisualizerContent(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 4.dp)
-                    .size(width = 30.dp, height = 52.dp)
+                    .size(width = 34.dp, height = 56.dp)
                     .clip(RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
                     .background(Color(0xCC12121A))
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
                     .clickable {
-                        if (controlsVisible) {
-                            controlsVisible = false
+                        if (activePanel == SidePanel.CONTROLS) {
+                            activePanel = SidePanel.NONE
                         } else {
-                            chordPanelVisible = false
+                            focusManager.clearFocus()
+                            activePanel = SidePanel.CONTROLS
+                            // The left panel is exclusively the Scale panel.
                             viewModel.setVisualizerMode(VisualizerMode.SCALES)
-                            controlsVisible = true
                         }
+                    }
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = if (activePanel == SidePanel.CONTROLS) {
+                            "Chiudi controlli"
+                        } else {
+                            "Apri controlli"
+                        }
+                        role = Role.Button
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (controlsVisible) "‹" else "›",
+                    text = if (activePanel == SidePanel.CONTROLS) "‹" else "›",
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
             }
-            if (chordPanelWeight > 0f) {
+            if (activePanel == SidePanel.CHORDS || chordPanelWeight > 0f) {
                 ChordToolsPanel(
                     state = state,
                     viewModel = viewModel,
+                    onClose = closeChordPanel,
                     modifier = Modifier
                         .weight(chordPanelWeight.coerceAtLeast(0.001f))
+                        .graphicsLayer {
+                            val visibleFraction = (chordPanelWeight / 0.48f).coerceIn(0f, 1f)
+                            alpha = visibleFraction
+                            translationX = size.width * (1f - visibleFraction)
+                        }
                         .fillMaxHeight()
                 )
             }
         }
-}
-
-private fun triadDegreeLabel(role: com.dedio.fretboardstudio.model.TriadRole?, type: com.dedio.fretboardstudio.model.TriadType): String? = when (role) {
-    null -> null
-    com.dedio.fretboardstudio.model.TriadRole.ROOT -> "1"
-    com.dedio.fretboardstudio.model.TriadRole.THIRD -> when (type.intervals[1]) {
-        2 -> "2"
-        5 -> "4"
-        else -> if (type.isMinorThird) "♭3" else "3"
-    }
-    com.dedio.fretboardstudio.model.TriadRole.FIFTH -> when {
-        type.isDiminishedFifth -> "♭5"
-        type.isAugmentedFifth -> "♯5"
-        else -> "5"
-    }
 }
 
 private fun chordDegreeLabel(interval: Int): String = when (interval) {

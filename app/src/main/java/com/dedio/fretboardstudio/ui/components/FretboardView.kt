@@ -54,11 +54,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dedio.fretboardstudio.model.BadgeDisplayMode
 import com.dedio.fretboardstudio.model.CagedShape
+import com.dedio.fretboardstudio.model.ChordOccupant
 import com.dedio.fretboardstudio.model.DotLabelMode
 import com.dedio.fretboardstudio.model.FretNote
 import com.dedio.fretboardstudio.model.FretboardDisplayScope
@@ -69,6 +71,7 @@ import com.dedio.fretboardstudio.model.NoteNotation
 import com.dedio.fretboardstudio.model.TriadCalculator
 import com.dedio.fretboardstudio.model.TriadRole
 import com.dedio.fretboardstudio.model.TriadType
+import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -95,7 +98,8 @@ fun FretboardView(
     tuning: GuitarTuning = GuitarTuning.STANDARD,
     orientation: FretboardOrientation = FretboardOrientation.HORIZONTAL,
     isLeftHanded: Boolean = false,
-    highlightSelectedString: Boolean = true
+    highlightSelectedString: Boolean = true,
+    highlightTonic: Boolean = false
 ) {
     if (orientation == FretboardOrientation.VERTICAL) {
         FretboardVerticalView(
@@ -114,7 +118,8 @@ fun FretboardView(
             cagedShape = cagedShape,
             tuning = tuning,
             isLeftHanded = isLeftHanded,
-            highlightSelectedString = highlightSelectedString
+            highlightSelectedString = highlightSelectedString,
+            highlightTonic = highlightTonic
         )
     } else {
         FretboardHorizontalView(
@@ -133,7 +138,8 @@ fun FretboardView(
             cagedShape = cagedShape,
             tuning = tuning,
             isLeftHanded = isLeftHanded,
-            highlightSelectedString = highlightSelectedString
+            highlightSelectedString = highlightSelectedString,
+            highlightTonic = highlightTonic
         )
     }
 }
@@ -155,7 +161,8 @@ private fun FretboardHorizontalView(
     cagedShape: CagedShape = CagedShape.C_SHAPE,
     tuning: GuitarTuning = GuitarTuning.STANDARD,
     isLeftHanded: Boolean = false,
-    highlightSelectedString: Boolean = true
+    highlightSelectedString: Boolean = true,
+    highlightTonic: Boolean = false
 ) {
     val scrollState = rememberScrollState()
     val zoom = rememberSaveable { mutableFloatStateOf(1f) }
@@ -266,14 +273,42 @@ private fun FretboardHorizontalView(
                                         lastTappedNote.fret == note.fret
                                 val fingerNumber = if (showFingerHints && isHighlighted) fingerHintsMap[note.stringNumber to note.fret] else null
                                 val noteAlpha = if (displayScope == FretboardDisplayScope.FULL_NECK || isSetString || note.isInSelectedVoicing) 1.0f else 0.35f
+                                val showTonicIndicator = highlightTonic && (
+                                    role == TriadRole.ROOT ||
+                                        note.isHighlightedRoot ||
+                                        note.sharedOccupants.any { it.role == TriadRole.ROOT }
+                                    )
 
-                                if (displayScope == FretboardDisplayScope.FULL_NECK) {
+                                if (note.sharedOccupants.isNotEmpty()) {
+                                    if (note.sharedOccupants.size == 1) {
+                                        SingleChordNoteBadge(
+                                            note = note,
+                                            occupant = note.sharedOccupants[0],
+                                            notation = notation,
+                                            dotLabelMode = dotLabelMode,
+                                            showTonicIndicator = showTonicIndicator,
+                                            onClick = { onNoteClick(note) },
+                                            modifier = Modifier.offset(x = xOffset, y = yOffset)
+                                        )
+                                    } else {
+                                        SharedChordNoteBadge(
+                                            note = note,
+                                            occupants = note.sharedOccupants,
+                                            notation = notation,
+                                            dotLabelMode = dotLabelMode,
+                                            showTonicIndicator = showTonicIndicator,
+                                            onClick = { onNoteClick(note) },
+                                            modifier = Modifier.offset(x = xOffset, y = yOffset)
+                                        )
+                                    }
+                                } else if (displayScope == FretboardDisplayScope.FULL_NECK) {
                                     ScaleNoteBadge(
                                         note = note,
                                         notation = notation,
                                         displayMode = badgeDisplayMode,
                                         dotLabelMode = dotLabelMode,
                                         isChordTarget = note.isTargetNote || (showChordTargets && isTriadNote),
+                                        showTonicIndicator = showTonicIndicator,
                                         onClick = { onNoteClick(note) },
                                         modifier = Modifier.offset(x = xOffset, y = yOffset)
                                     )
@@ -291,6 +326,7 @@ private fun FretboardHorizontalView(
                                         isTapped = isTapped,
                                         fingerHint = fingerNumber,
                                         alpha = noteAlpha,
+                                        showTonicIndicator = showTonicIndicator,
                                         onClick = { onNoteClick(note) },
                                         modifier = Modifier.offset(x = xOffset, y = yOffset)
                                     )
@@ -333,7 +369,8 @@ private fun FretboardVerticalView(
     cagedShape: CagedShape = CagedShape.C_SHAPE,
     tuning: GuitarTuning = GuitarTuning.STANDARD,
     isLeftHanded: Boolean = false,
-    highlightSelectedString: Boolean = true
+    highlightSelectedString: Boolean = true,
+    highlightTonic: Boolean = false
 ) {
     val verticalScrollState = rememberScrollState()
     val horizontalScrollState = rememberScrollState()
@@ -522,8 +559,7 @@ private fun FretboardVerticalView(
                                     .fillMaxHeight()
                                     .drawBehind {
                                         val centerX = size.width / 2f
-                                        val stringIndex = orderedStringNumbers.indexOf(stringNum)
-                                        val thickness = (0.7f + stringIndex * 0.18f).dp.toPx()
+                                        val thickness = (0.8f + (stringNum - 1) * 0.3f).dp.toPx()
                                         drawLine(
                                             color = Color(0xFF2C1A12).copy(alpha = 0.95f),
                                             start = Offset(centerX + 1.dp.toPx(), 0f),
@@ -557,14 +593,40 @@ private fun FretboardVerticalView(
                                                 lastTappedNote.fret == note.fret
                                         val fingerNumber = if (showFingerHints && isHighlighted) fingerHintsMap[note.stringNumber to note.fret] else null
                                         val noteAlpha = if (displayScope == FretboardDisplayScope.FULL_NECK || isSetString || note.isInSelectedVoicing) 1.0f else 0.35f
+                                        val showTonicIndicator = highlightTonic && (
+                                            role == TriadRole.ROOT ||
+                                                note.isHighlightedRoot ||
+                                                note.sharedOccupants.any { it.role == TriadRole.ROOT }
+                                            )
 
-                                        if (displayScope == FretboardDisplayScope.FULL_NECK) {
+                                        if (note.sharedOccupants.isNotEmpty()) {
+                                            if (note.sharedOccupants.size == 1) {
+                                                SingleChordNoteBadge(
+                                                    note = note,
+                                                    occupant = note.sharedOccupants[0],
+                                                    notation = notation,
+                                                    dotLabelMode = dotLabelMode,
+                                                    showTonicIndicator = showTonicIndicator,
+                                                    onClick = { onNoteClick(note) }
+                                                )
+                                            } else {
+                                                SharedChordNoteBadge(
+                                                    note = note,
+                                                    occupants = note.sharedOccupants,
+                                                    notation = notation,
+                                                    dotLabelMode = dotLabelMode,
+                                                    showTonicIndicator = showTonicIndicator,
+                                                    onClick = { onNoteClick(note) }
+                                                )
+                                            }
+                                        } else if (displayScope == FretboardDisplayScope.FULL_NECK) {
                                             ScaleNoteBadge(
                                                 note = note,
                                                 notation = notation,
                                                 displayMode = badgeDisplayMode,
                                                 dotLabelMode = dotLabelMode,
                                                 isChordTarget = note.isTargetNote || (showChordTargets && isTriadNote),
+                                                showTonicIndicator = showTonicIndicator,
                                                 onClick = { onNoteClick(note) }
                                             )
                                         } else if (role != null) {
@@ -581,6 +643,7 @@ private fun FretboardVerticalView(
                                                 isTapped = isTapped,
                                                 fingerHint = fingerNumber,
                                                 alpha = noteAlpha,
+                                                showTonicIndicator = showTonicIndicator,
                                                 onClick = { onNoteClick(note) }
                                             )
                                         }
@@ -624,6 +687,7 @@ private fun ScaleNoteBadge(
     displayMode: BadgeDisplayMode,
     dotLabelMode: DotLabelMode = DotLabelMode.NOTES,
     isChordTarget: Boolean = false,
+    showTonicIndicator: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -659,7 +723,7 @@ private fun ScaleNoteBadge(
             .size(28.dp)
             .clip(CircleShape)
             .background(bgColor)
-            .border(if (isChordTarget) 1.5.dp else 1.dp, ringColor, CircleShape)
+            .border(if (isChordTarget) 1.dp else 0.75.dp, ringColor, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -667,13 +731,166 @@ private fun ScaleNoteBadge(
             Text(
                 text = primaryLabel,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    color = if (dotLabelMode == DotLabelMode.INTERVALS) degColor else textColor,
-                    fontWeight = FontWeight.Bold,
+                    color = if (showTonicIndicator) NeonGold else if (dotLabelMode == DotLabelMode.INTERVALS) degColor else textColor,
+                    fontWeight = if (showTonicIndicator) FontWeight.Black else FontWeight.Bold,
                     fontSize = if (primaryLabel.length > 2) 7.sp else 9.sp,
                     lineHeight = 9.sp
                 ),
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun SingleChordNoteBadge(
+    note: FretNote,
+    occupant: ChordOccupant,
+    notation: NoteNotation,
+    dotLabelMode: DotLabelMode,
+    showTonicIndicator: Boolean = false,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val noteName = note.pitch.getDisplayName(notation)
+    val primaryLabel: String? = when (dotLabelMode) {
+        DotLabelMode.NOTES -> noteName
+        DotLabelMode.INTERVALS -> occupant.degreeLabel
+        DotLabelMode.CLEAN -> null
+    }
+    val effectiveColor = occupant.color
+    val isSelected = occupant.isSelected
+
+    Box(
+        modifier = modifier
+            .size(28.dp)
+            .shadow(elevation = if (isSelected) 6.dp else 4.dp, shape = CircleShape, spotColor = effectiveColor, ambientColor = effectiveColor)
+            .clip(CircleShape)
+            .background(Color(0xFF0F121C))
+            .border(if (isSelected) 1.dp else 0.5.dp, effectiveColor, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(effectiveColor.copy(alpha = 0.35f), Color.Transparent),
+                    radius = size.width / 2f
+                )
+            )
+        }
+        if (primaryLabel != null) {
+            Text(
+                text = primaryLabel,
+                modifier = Modifier.padding(horizontal = 1.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = if (showTonicIndicator) NeonGold else if (dotLabelMode == DotLabelMode.INTERVALS) effectiveColor else Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = if (primaryLabel.length > 2) 7.sp else 9.sp,
+                    lineHeight = 9.sp
+                ),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun SharedChordNoteBadge(
+    note: FretNote,
+    occupants: List<ChordOccupant>,
+    notation: NoteNotation,
+    dotLabelMode: DotLabelMode,
+    showTonicIndicator: Boolean = false,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val noteName = note.pitch.getDisplayName(notation)
+    val primaryLabel: String? = when (dotLabelMode) {
+        DotLabelMode.NOTES -> noteName
+        // De-duplicate degrees so five chords on one note do not produce an unreadable
+        // "1/1/1/1/1"-style label on top of the coloured sectors.
+        DotLabelMode.INTERVALS -> occupants.map { it.degreeLabel }.distinct().joinToString("/")
+        DotLabelMode.CLEAN -> null
+    }
+    val selectedOccupant = occupants.firstOrNull { it.isSelected }
+    // Stable slot order: each colour always belongs to the same chord.
+    val orderedOccupants = occupants.sortedBy { it.slotIndex }
+    // percent=50 follows the actual bounds, so the same code handles circles and ovals.
+    val markerShape = RoundedCornerShape(percent = 50)
+
+    Box(
+        modifier = modifier
+            .size(28.dp)
+            .shadow(elevation = if (selectedOccupant != null) 6.dp else 4.dp, shape = markerShape)
+            .clip(markerShape)
+            .background(Color(0xFF0F121C))
+            .border(
+                if (selectedOccupant != null) 0.75.dp else 0.5.dp,
+                selectedOccupant?.color ?: Color.White.copy(alpha = 0.6f),
+                markerShape
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val count = orderedOccupants.size
+            val sweep = 360f / count
+            val markerWidth = size.width
+            val markerHeight = size.height
+            val center = center
+
+            // Exactly N equal sectors: 2 -> 180°, 3 -> 120°, 4 -> 90°, 5 -> 72°.
+            // Drawing with the full width/height fills an oval as well as a circle.
+            orderedOccupants.forEachIndexed { index, occupant ->
+                drawArc(
+                    color = occupant.color,
+                    startAngle = index * sweep - 90f,
+                    sweepAngle = sweep,
+                    useCenter = true,
+                    size = Size(markerWidth, markerHeight)
+                )
+            }
+
+            if (count > 1) {
+                orderedOccupants.forEachIndexed { index, _ ->
+                    val angleRad = Math.toRadians((index * sweep - 90.0))
+                    val endX = center.x + (markerWidth / 2f) * cos(angleRad).toFloat()
+                    val endY = center.y + (markerHeight / 2f) * sin(angleRad).toFloat()
+                    drawLine(
+                        color = Color.Black.copy(alpha = 0.7f),
+                        start = center,
+                        end = Offset(endX, endY),
+                        strokeWidth = 1.4.dp.toPx()
+                    )
+                }
+            }
+        }
+
+        if (primaryLabel != null) {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 2.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Color(0xFF0F121C).copy(alpha = 0.92f))
+                    .border(0.5.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(11.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = primaryLabel,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = if (showTonicIndicator) NeonGold else Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = if (primaryLabel.length > 3) 7.sp else 9.sp,
+                        lineHeight = 9.sp
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -941,6 +1158,7 @@ private fun NeonGlowNoteBadge(
     isTapped: Boolean,
     fingerHint: Int?,
     alpha: Float = 1.0f,
+    showTonicIndicator: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -982,7 +1200,7 @@ private fun NeonGlowNoteBadge(
             .clip(CircleShape)
             .background(Color(0xFF0F121C))
             .border(
-                width = if (note.isHighlightedRoot) 2.5.dp else if (isHighlighted) 2.dp else 1.2.dp,
+                width = if (note.isHighlightedRoot) 1.75.dp else if (isHighlighted) 1.25.dp else 0.75.dp,
                 color = borderColor,
                 shape = CircleShape
             )
@@ -1002,7 +1220,7 @@ private fun NeonGlowNoteBadge(
             Text(
                 text = primaryLabel,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    color = if (dotLabelMode == DotLabelMode.INTERVALS) effectiveColor else Color.White,
+                    color = if (showTonicIndicator) NeonGold else if (dotLabelMode == DotLabelMode.INTERVALS) effectiveColor else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = if (primaryLabel.length > 2) 9.sp else 11.sp,
                     lineHeight = 11.sp
@@ -1019,7 +1237,7 @@ private fun NeonGlowNoteBadge(
                     .size(13.dp)
                     .clip(CircleShape)
                     .background(Color.White)
-                    .border(1.dp, Color.Black, CircleShape),
+                    .border(0.75.dp, Color.Black, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

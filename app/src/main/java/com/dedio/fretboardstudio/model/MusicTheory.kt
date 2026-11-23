@@ -289,12 +289,13 @@ enum class TriadType(
 
 enum class TriadInversion(
     val title: String,
+    val englishTitle: String,
     val formula: String
 ) {
-    ALL("Tutte", "Tutti i rivolti"),
-    ROOT_POSITION("Fondamentale", "1 - 3 - 5"),
-    FIRST_INVERSION("1° Rivolto", "3 - 5 - 1"),
-    SECOND_INVERSION("2° Rivolto", "5 - 1 - 3")
+    ALL("Tutte", "All", "Tutti i rivolti"),
+    ROOT_POSITION("Fondamentale", "Root", "1 - 3 - 5"),
+    FIRST_INVERSION("1° Rivolto", "1st", "3 - 5 - 1"),
+    SECOND_INVERSION("2° Rivolto", "2nd", "5 - 1 - 3")
 }
 
 data class GuitarStringInfo(
@@ -308,10 +309,10 @@ data class GuitarStringInfo(
 object GuitarConstants {
     val STRINGS = GuitarTuning.STANDARD.getStringInfoList()
 
-    const val TOTAL_FRETS = 22
+    const val TOTAL_FRETS = 24
 
     val SINGLE_DOT_FRETS = setOf(3, 5, 7, 9, 15, 17, 19, 21)
-    val DOUBLE_DOT_FRETS = setOf(12)
+    val DOUBLE_DOT_FRETS = setOf(12, 24)
 
     fun getMidiNote(stringNumber: Int, fret: Int, tuning: GuitarTuning = GuitarTuning.STANDARD): Int {
         val stringInfo = tuning.getStringInfoList().firstOrNull { it.stringNumber == stringNumber } ?: STRINGS.last()
@@ -333,7 +334,8 @@ data class FretNote(
     val isInSelectedVoicing: Boolean = false,
     val isInScale: Boolean = false,
     val scaleDegreeLabel: String? = null,
-    val isTargetNote: Boolean = false
+    val isTargetNote: Boolean = false,
+    val sharedOccupants: List<ChordOccupant> = emptyList()
 ) {
     val frequency: Float get() = GuitarConstants.midiToFrequency(midiNote)
 }
