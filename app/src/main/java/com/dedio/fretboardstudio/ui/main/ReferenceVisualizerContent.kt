@@ -56,6 +56,7 @@ import com.dedio.fretboardstudio.ui.TriadUiState
 import com.dedio.fretboardstudio.ui.TriadViewModel
 import com.dedio.fretboardstudio.ui.VisualizerMode
 import com.dedio.fretboardstudio.ui.selectedChordSlot
+import com.dedio.fretboardstudio.ui.visibleChordSlots
 import com.dedio.fretboardstudio.ui.components.FretboardView
 import com.dedio.fretboardstudio.ui.components.TuningSelector
 
@@ -70,6 +71,7 @@ fun ReferenceVisualizerContent(
     modifier: Modifier = Modifier,
 ) {
     val state: TriadUiState = viewModel.uiState.collectAsStateWithLifecycle().value
+    val strings = UiStrings(state.language)
     var activePanel by rememberSaveable { mutableStateOf(SidePanel.CONTROLS) }
     val focusManager = LocalFocusManager.current
 
@@ -95,8 +97,11 @@ fun ReferenceVisualizerContent(
             .clipToBounds()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (activePanel != SidePanel.NONE) 6.dp else 0.dp)
+        horizontalArrangement = Arrangement.spacedBy(
+            6.dp * (controlsWeight + chordPanelWeight).coerceIn(0f, 1f)
+        )
     ) {
+        if (activePanel == SidePanel.CONTROLS || controlsWeight > 0f) {
             Column(
                 modifier = Modifier
                     .weight(controlsWeight.coerceAtLeast(0.001f))
@@ -111,23 +116,17 @@ fun ReferenceVisualizerContent(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp)
             ) {
-                val strings = UiStrings(state.language)
                 Text(
                     text = when (state.visualizerMode) {
                         VisualizerMode.TRIADS -> {
                             val title = state.selectedChordSlot?.displayTitle(state.notation, state.language).orEmpty()
-                            if (state.triadSequenceSlots.size == 1) {
-                                title
-                            } else {
-                                val count = if (state.language == com.dedio.fretboardstudio.model.UiLanguage.ITALIAN) {
-                                    " · ${state.triadSequenceSlots.size} accordi"
-                                } else {
-                                    " · ${state.triadSequenceSlots.size} chords"
-                                }
-                                title + count
-                            }
+                            val visibleCount = state.visibleChordSlots.size
+                            if (visibleCount <= 1) title else title + strings.chordCount(visibleCount)
                         }
-                        VisualizerMode.DICTIONARY -> "${state.selectedDictionaryRoot.getDisplayName(state.notation)} ${state.selectedDictionaryType.name} ${state.selectedDictionaryType.symbol}"
+                        VisualizerMode.DICTIONARY -> {
+                            val root = state.selectedDictionaryRoot.getDisplayName(state.notation)
+                            "$root ${strings.chordSymbol(state.selectedDictionaryType)}"
+                        }
                         VisualizerMode.SCALES -> "${state.selectedRoot.getDisplayName(state.notation)} ${strings.scaleTitle(state.selectedScale)}"
                     },
                     color = MaterialTheme.colorScheme.primary,
@@ -168,7 +167,8 @@ fun ReferenceVisualizerContent(
                         Text(
                             text = strings.showTuningNotes,
                             color = VisualizerMuted,
-                            fontSize = 9.sp
+                            fontSize = 9.sp,
+                            modifier = Modifier.semantics { contentDescription = strings.showTuningNotesDescription }
                         )
                     }
                     Switch(
@@ -184,7 +184,6 @@ fun ReferenceVisualizerContent(
                     com.dedio.fretboardstudio.model.ScaleType.MINOR_PENTATONIC,
                     com.dedio.fretboardstudio.model.ScaleType.BLUES
                 )
-                ControlLabel(strings.scale)
                 ControlLabel(if (usesPentatonicBoxes) strings.boxes else strings.scalePosition)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                     (0..5).forEach { position ->
@@ -242,6 +241,7 @@ fun ReferenceVisualizerContent(
                 }
 
             }
+        }
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -328,7 +328,7 @@ fun ReferenceVisualizerContent(
                 orientation = FretboardOrientation.VERTICAL,
                 isLeftHanded = state.isLeftHanded,
                 highlightSelectedString = false,
-                highlightTonic = state.highlightTonic,
+                highlightTonic = state.highlightTonic && state.visualizerMode == VisualizerMode.TRIADS,
                 modifier = Modifier
                     .width(boardWidth)
                     .fillMaxHeight()
@@ -349,15 +349,17 @@ fun ReferenceVisualizerContent(
                         } else {
                             focusManager.clearFocus()
                             activePanel = SidePanel.CHORDS
-                            // Make sure the selected chord is what the fretboard shows.
-                            viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+                            // Keep the dictionary tab intact; only leave the Scale view.
+                            if (state.visualizerMode == VisualizerMode.SCALES) {
+                                viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+                            }
                         }
                     }
                     .semantics(mergeDescendants = true) {
                         contentDescription = if (activePanel == SidePanel.CHORDS) {
-                            "Chiudi pannello accordi"
+                            strings.closeChordPanel
                         } else {
-                            "Apri pannello accordi"
+                            strings.openChordPanel
                         }
                         role = Role.Button
                     },
@@ -390,9 +392,9 @@ fun ReferenceVisualizerContent(
                     }
                     .semantics(mergeDescendants = true) {
                         contentDescription = if (activePanel == SidePanel.CONTROLS) {
-                            "Chiudi controlli"
+                            strings.closeScalesPanel
                         } else {
-                            "Apri controlli"
+                            strings.openScalesPanel
                         }
                         role = Role.Button
                     },

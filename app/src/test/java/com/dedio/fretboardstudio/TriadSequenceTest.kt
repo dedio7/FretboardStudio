@@ -31,7 +31,7 @@ class TriadSequenceTest {
         assertEquals(0xFFFF4FA1, getSlotColorHex(2))
         assertEquals(0xFFFFA62B, getSlotColorHex(3))
         assertEquals(0xFFB8FF2C, getSlotColorHex(4))
-        // Wrapping keeps colours stable when slots are reordered.
+        // The palette wraps; exactly five slots are allowed in a sequence.
         assertEquals(0xFF00D7E8, getSlotColorHex(5))
     }
 

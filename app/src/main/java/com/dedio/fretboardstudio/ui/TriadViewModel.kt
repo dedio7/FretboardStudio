@@ -56,7 +56,7 @@ data class TriadUiState(
             quality = TriadType.MAJOR,
             inversion = TriadInversion.ALL,
             baseString = 5,
-        )
+        ),
     ),
     /** The chord currently being edited; also the one shown in the header and on the neck. */
     val selectedSlotId: String = DEFAULT_SLOT_ID,
@@ -65,11 +65,18 @@ data class TriadUiState(
     /** Show only the selected chord so a voicing can be studied in isolation. */
     val isolateSelectedSlot: Boolean = false,
     /** Draw a dedicated indicator on root/tonic notes. */
-    val highlightTonic: Boolean = false
+    val highlightTonic: Boolean = false,
 )
 
+/** Chords that actually contribute markers to the fretboard. */
+val TriadUiState.visibleChordSlots: List<ChordSlot>
+    get() = triadSequenceSlots.filter { it.isVisible }
+
+/** The chord the header should describe: the selected visible one, or the first visible one. */
 val TriadUiState.selectedChordSlot: ChordSlot?
-    get() = triadSequenceSlots.firstOrNull { it.id == selectedSlotId } ?: triadSequenceSlots.firstOrNull()
+    get() = triadSequenceSlots.firstOrNull { slot -> (slot.id == selectedSlotId) && slot.isVisible }
+        ?: visibleChordSlots.firstOrNull()
+        ?: triadSequenceSlots.firstOrNull { it.id == selectedSlotId }
 
 class TriadViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(TriadUiState())
@@ -78,6 +85,14 @@ class TriadViewModel : ViewModel() {
     init {
         recalculate()
     }
+
+    /** Keeps the root grid, type/inversion selectors and header in step with a slot. */
+    private fun TriadUiState.syncedTo(slot: ChordSlot?) = copy(
+        selectedRoot = slot?.root ?: selectedRoot,
+        selectedTriadType = slot?.quality ?: selectedTriadType,
+        selectedInversion = slot?.inversion ?: selectedInversion,
+        selectedBaseString = slot?.baseString ?: selectedBaseString
+    )
 
     private fun recalculate() {
         _uiState.update { current ->
@@ -108,16 +123,12 @@ class TriadViewModel : ViewModel() {
     fun setVisualizerMode(mode: VisualizerMode) {
         _uiState.update { current ->
             if (mode == VisualizerMode.TRIADS) {
-                val slot = current.selectedChordSlot
-                current.copy(
+                current.syncedTo(current.selectedChordSlot).copy(
                     visualizerMode = mode,
-                    selectedRoot = slot?.root ?: current.selectedRoot,
-                    selectedTriadType = slot?.quality ?: current.selectedTriadType,
-                    selectedInversion = slot?.inversion ?: current.selectedInversion,
-                    selectedBaseString = slot?.baseString ?: current.selectedBaseString
+                    lastTappedNote = null
                 )
             } else {
-                current.copy(visualizerMode = mode)
+                current.copy(visualizerMode = mode, lastTappedNote = null)
             }
         }
         recalculate()
@@ -126,28 +137,6 @@ class TriadViewModel : ViewModel() {
     /** Applies a change to the chord the user is currently editing, not always slot 0. */
     private fun TriadUiState.updateSelectedSlot(transform: (ChordSlot) -> ChordSlot): List<ChordSlot> =
         triadSequenceSlots.map { if (it.id == selectedSlotId) transform(it) else it }
-
-    fun selectTriadType(type: TriadType) {
-        _uiState.update { current ->
-            current.copy(
-                visualizerMode = VisualizerMode.TRIADS,
-                selectedTriadType = type,
-                triadSequenceSlots = current.updateSelectedSlot { it.copy(quality = type) }
-            )
-        }
-        recalculate()
-    }
-
-    fun selectInversion(inversion: TriadInversion) {
-        _uiState.update { current ->
-            current.copy(
-                visualizerMode = VisualizerMode.TRIADS,
-                selectedInversion = inversion,
-                triadSequenceSlots = current.updateSelectedSlot { it.copy(inversion = inversion) }
-            )
-        }
-        recalculate()
-    }
 
     fun selectDictionaryRoot(pitch: Pitch) {
         _uiState.update {
@@ -231,23 +220,6 @@ class TriadViewModel : ViewModel() {
         recalculate()
     }
 
-    fun selectBaseString(stringNumber: Int) {
-        if (stringNumber !in 1..6) return
-        _uiState.update { current ->
-            val slots = if (current.visualizerMode == VisualizerMode.TRIADS) {
-                current.updateSelectedSlot { it.copy(baseString = stringNumber) }
-            } else {
-                current.triadSequenceSlots
-            }
-            current.copy(
-                visualizerMode = VisualizerMode.TRIADS,
-                selectedBaseString = stringNumber,
-                triadSequenceSlots = slots
-            )
-        }
-        recalculate()
-    }
-
     fun setDotLabelMode(mode: DotLabelMode) {
         _uiState.update { it.copy(dotLabelMode = mode) }
     }
@@ -287,11 +259,8 @@ class TriadViewModel : ViewModel() {
                 visualizerMode = VisualizerMode.TRIADS,
                 selectedSlotId = id,
                 expandedSlotId = id,
-                selectedRoot = slot.root,
-                selectedTriadType = slot.quality,
-                selectedInversion = slot.inversion,
-                selectedBaseString = slot.baseString
-            )
+                lastTappedNote = null
+            ).syncedTo(slot)
         }
         recalculate()
     }
@@ -306,7 +275,29 @@ class TriadViewModel : ViewModel() {
     }
 
     fun setSlotIsolation(isolated: Boolean) {
-        _uiState.update { it.copy(isolateSelectedSlot = isolated) }
+        _uiState.update { current ->
+            if (!isolated) {
+                current.copy(isolateSelectedSlot = false, lastTappedNote = null)
+            } else {
+                // Solo on a hidden chord would draw an empty neck. Move to a visible chord first.
+                val selected = current.triadSequenceSlots.firstOrNull { it.id == current.selectedSlotId }
+                if (selected != null && !selected.isVisible) {
+                    val replacement = current.visibleChordSlots.firstOrNull()
+                    if (replacement == null) {
+                        current.copy(isolateSelectedSlot = false, lastTappedNote = null)
+                    } else {
+                        current.copy(
+                            isolateSelectedSlot = true,
+                            selectedSlotId = replacement.id,
+                            expandedSlotId = replacement.id,
+                            lastTappedNote = null
+                        ).syncedTo(replacement)
+                    }
+                } else {
+                    current.copy(isolateSelectedSlot = true, lastTappedNote = null)
+                }
+            }
+        }
         recalculate()
     }
 
@@ -330,8 +321,9 @@ class TriadViewModel : ViewModel() {
                 visualizerMode = VisualizerMode.TRIADS,
                 triadSequenceSlots = current.triadSequenceSlots + newSlot,
                 selectedSlotId = newSlot.id,
-                expandedSlotId = newSlot.id
-            )
+                expandedSlotId = newSlot.id,
+                lastTappedNote = null
+            ).syncedTo(newSlot)
         }
         recalculate()
     }
@@ -343,23 +335,21 @@ class TriadViewModel : ViewModel() {
             val updated = current.triadSequenceSlots.filter { it.id != id }.mapIndexed { idx, slot ->
                 slot.copy(slotIndex = idx)
             }
-            val nextId = if (current.selectedSlotId == id) {
-                updated.getOrNull(removedIndex.coerceIn(0, updated.lastIndex))?.id ?: updated.first().id
-            } else {
-                current.selectedSlotId
-            }
-            val selected = updated.firstOrNull { it.id == nextId }
-            val nextExpandedId = if (current.expandedSlotId == id) nextId else current.expandedSlotId
+            val neighbour = updated.getOrNull(removedIndex.coerceIn(0, updated.lastIndex)) ?: updated.first()
+            val nextSelected = when {
+                current.selectedSlotId != id -> updated.firstOrNull { it.id == current.selectedSlotId }
+                current.isolateSelectedSlot && !neighbour.isVisible -> current.visibleChordSlots.firstOrNull()
+                    ?: updated.firstOrNull { it.isVisible }
+                else -> neighbour
+            } ?: updated.first()
+            val nextExpandedId = if (current.expandedSlotId == id) nextSelected.id else current.expandedSlotId
             current.copy(
                 visualizerMode = VisualizerMode.TRIADS,
                 triadSequenceSlots = updated,
-                selectedSlotId = nextId,
+                selectedSlotId = nextSelected.id,
                 expandedSlotId = nextExpandedId,
-                selectedRoot = selected?.root ?: current.selectedRoot,
-                selectedTriadType = selected?.quality ?: current.selectedTriadType,
-                selectedInversion = selected?.inversion ?: current.selectedInversion,
-                selectedBaseString = selected?.baseString ?: current.selectedBaseString
-            )
+                lastTappedNote = null
+            ).syncedTo(nextSelected)
         }
         recalculate()
     }
@@ -375,23 +365,36 @@ class TriadViewModel : ViewModel() {
                 triadSequenceSlots = updated,
                 selectedSlotId = id,
                 expandedSlotId = id,
-                selectedRoot = selected?.root ?: current.selectedRoot,
-                selectedTriadType = selected?.quality ?: current.selectedTriadType,
-                selectedInversion = selected?.inversion ?: current.selectedInversion,
-                selectedBaseString = selected?.baseString ?: current.selectedBaseString
-            )
+                lastTappedNote = null
+            ).syncedTo(selected)
         }
         recalculate()
     }
 
-    /** Pure visibility change: must not disturb the selected chord or the current mode. */
+    /** Visibility change: keeps the current mode and selection whenever that selection is still drawable. */
     fun toggleSlotVisibility(id: String) {
         _uiState.update { current ->
+            val updated = current.triadSequenceSlots.map { slot ->
+                if (slot.id == id) slot.copy(isVisible = !slot.isVisible) else slot
+            }
+            val selectedIsHidden = updated.firstOrNull { it.id == current.selectedSlotId }?.isVisible == false
+            // Only a selected chord in Solo mode needs a visible replacement to avoid an empty neck.
+            val replacement = if (selectedIsHidden && current.isolateSelectedSlot) {
+                updated.firstOrNull { it.isVisible }
+            } else {
+                null
+            }
             current.copy(
-                triadSequenceSlots = current.triadSequenceSlots.map { slot ->
-                    if (slot.id == id) slot.copy(isVisible = !slot.isVisible) else slot
-                }
-            )
+                triadSequenceSlots = updated,
+                selectedSlotId = replacement?.id ?: current.selectedSlotId,
+                expandedSlotId = if (current.expandedSlotId == current.selectedSlotId) {
+                    replacement?.id ?: current.expandedSlotId
+                } else {
+                    current.expandedSlotId
+                },
+                isolateSelectedSlot = if (selectedIsHidden) replacement != null else current.isolateSelectedSlot,
+                lastTappedNote = null
+            ).syncedTo(replacement)
         }
         recalculate()
     }
@@ -400,14 +403,17 @@ class TriadViewModel : ViewModel() {
         _uiState.update { current ->
             val list = current.triadSequenceSlots.toMutableList()
             val targetIndex = index + direction
-            if (targetIndex in list.indices) {
-                val item = list.removeAt(index)
-                list.add(targetIndex, item)
-                val reindexed = list.mapIndexed { idx, slot -> slot.copy(slotIndex = idx) }
-                current.copy(visualizerMode = VisualizerMode.TRIADS, triadSequenceSlots = reindexed)
-            } else {
-                current
+            if (index !in list.indices || targetIndex !in list.indices) {
+                return@update current
             }
+            val item = list.removeAt(index)
+            list.add(targetIndex, item)
+            val reindexed = list.mapIndexed { idx, slot -> slot.copy(slotIndex = idx) }
+            current.copy(
+                visualizerMode = VisualizerMode.TRIADS,
+                triadSequenceSlots = reindexed,
+                lastTappedNote = null
+            )
         }
         recalculate()
     }

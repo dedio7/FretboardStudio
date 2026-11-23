@@ -1,7 +1,5 @@
 package com.dedio.fretboardstudio
 
-import com.dedio.fretboardstudio.model.BadgeDisplayMode
-import com.dedio.fretboardstudio.model.GuitarConstants
 import com.dedio.fretboardstudio.model.GuitarTuning
 import com.dedio.fretboardstudio.model.NoteNotation
 import com.dedio.fretboardstudio.model.Pitch

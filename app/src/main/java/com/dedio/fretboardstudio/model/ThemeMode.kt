@@ -10,18 +10,16 @@ enum class VisualTheme(
     val tertiaryColor: Color,
     val backgroundColor: Color,
     val surfaceColor: Color,
-    val cardBorderColor: Color,
-    val fretboardBgColor: Color
+    val fretboardBgColor: Color,
 ) {
     DEFAULT(
-        title = "Guitar Visualizer",
+        title = "Fretboard Studio",
         description = "Studio scuro con ciano, oro caldo e magenta",
         primaryColor = Color(0xFF00D7E8),
         secondaryColor = Color(0xFFFFC44D),
         tertiaryColor = Color(0xFFE85C9E),
         backgroundColor = Color(0xFF100F16),
         surfaceColor = Color(0xFF1D1A22),
-        cardBorderColor = Color(0xFF3A303A),
         fretboardBgColor = Color(0xFF56331F)
     ),
     NEON(
@@ -32,7 +30,6 @@ enum class VisualTheme(
         tertiaryColor = Color(0xFFFF2E88),
         backgroundColor = Color(0xFF05050B),
         surfaceColor = Color(0xFF10101D),
-        cardBorderColor = Color(0xFF39245A),
         fretboardBgColor = Color(0xFF171326)
     ),
     PLAYFUL(
@@ -43,7 +40,6 @@ enum class VisualTheme(
         tertiaryColor = Color(0xFF16877D),
         backgroundColor = Color(0xFFFFF6E8),
         surfaceColor = Color(0xFFFFFCF5),
-        cardBorderColor = Color(0xFFE8D8BE),
         fretboardBgColor = Color(0xFF704552)
     ),
     VIBRANT(
@@ -54,7 +50,6 @@ enum class VisualTheme(
         tertiaryColor = Color(0xFF42E2B8),
         backgroundColor = Color(0xFF101426),
         surfaceColor = Color(0xFF1B2340),
-        cardBorderColor = Color(0xFF354269),
         fretboardBgColor = Color(0xFF263557)
     )
 }

@@ -36,13 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dedio.fretboardstudio.model.ChordCategory
 import com.dedio.fretboardstudio.model.ChordDictionaryRepository
-import com.dedio.fretboardstudio.model.ChordTypeInfo
 import com.dedio.fretboardstudio.model.DotLabelMode
 import com.dedio.fretboardstudio.model.Pitch
-import com.dedio.fretboardstudio.model.TriadCalculator
 import com.dedio.fretboardstudio.model.TriadInversion
 import com.dedio.fretboardstudio.model.TriadType
-import com.dedio.fretboardstudio.model.UiLanguage
+import com.dedio.fretboardstudio.model.UiStrings
 import com.dedio.fretboardstudio.ui.TriadUiState
 import com.dedio.fretboardstudio.ui.TriadViewModel
 import com.dedio.fretboardstudio.ui.components.ChordDiagramView
@@ -57,6 +55,7 @@ fun ChordToolsPanel(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {},
 ) {
+    val strings = UiStrings(state.language)
     // Derived from the ViewModel so the tab cannot drift out of sync when the panel
     // is closed/reopened or the mode changes from elsewhere.
     val selectedTab = if (state.visualizerMode == com.dedio.fretboardstudio.ui.VisualizerMode.DICTIONARY) {
@@ -73,10 +72,10 @@ fun ChordToolsPanel(
             .padding(10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            PanelChip(if (italian(state)) "TRIADI" else "TRIADS", selectedTab == ChordToolsTab.TRIADS, Modifier.weight(1f)) {
+            PanelChip(strings.triadsTab, selectedTab == ChordToolsTab.TRIADS, Modifier.weight(1f)) {
                 viewModel.setVisualizerMode(com.dedio.fretboardstudio.ui.VisualizerMode.TRIADS)
             }
-            PanelChip(if (italian(state)) "PRONTUARIO" else "CHORDS", selectedTab == ChordToolsTab.DICTIONARY, Modifier.weight(1f)) {
+            PanelChip(strings.dictionaryTab, selectedTab == ChordToolsTab.DICTIONARY, Modifier.weight(1f)) {
                 viewModel.setVisualizerMode(com.dedio.fretboardstudio.ui.VisualizerMode.DICTIONARY)
             }
             Box(
@@ -87,7 +86,7 @@ fun ChordToolsPanel(
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
                     .clickable(onClick = onClose)
                     .semantics(mergeDescendants = true) {
-                        contentDescription = if (italian(state)) "Chiudi pannello accordi" else "Close chord panel"
+                        contentDescription = strings.closeChordPanel
                         role = Role.Button
                     },
                 contentAlignment = Alignment.Center
@@ -110,26 +109,26 @@ fun ChordToolsPanel(
 
 @Composable
 private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
-    val isIt = italian(state)
+    val strings = UiStrings(state.language)
     val expandedSlotId = state.expandedSlotId
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        PanelSection(if (isIt) "ACCORDATURA" else "TUNING")
+        PanelSection(strings.tuning)
         TuningSelector(
             selectedTuning = state.selectedTuning,
             onTuningSelected = viewModel::selectTuning,
             modifier = Modifier.fillMaxWidth()
         )
 
-        PanelSection(if (isIt) "ETICHETTE" else "LABELS")
+        PanelSection(strings.display)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             listOf(
-                DotLabelMode.CLEAN to if (isIt) "Vuote" else "Empty",
-                DotLabelMode.NOTES to if (isIt) "Note" else "Notes",
-                DotLabelMode.INTERVALS to if (isIt) "Intervalli" else "Intervals"
+                DotLabelMode.CLEAN to strings.clean,
+                DotLabelMode.NOTES to strings.notes,
+                DotLabelMode.INTERVALS to strings.intervals
             ).forEach { (mode, label) ->
                 PanelChip(
                     text = label,
@@ -139,7 +138,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
             }
         }
 
-        PanelSection(if (isIt) "SEQUENZA (1-5)" else "SEQUENCE (1-5)")
+        PanelSection(strings.sequence)
 
         // Color legend & Add button row
         Row(
@@ -153,7 +152,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         modifier = Modifier
                             .size(14.dp)
                             .clip(CircleShape)
-                            .background(slot.color)
+                            .background(slot.color.copy(alpha = if (slot.isVisible) 1f else 0.3f))
                     )
                 }
             }
@@ -161,7 +160,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
             PanelChip(
                 text = "+ (${state.triadSequenceSlots.size}/5)",
                 selected = false,
-                modifier = Modifier
+                modifier = Modifier.semantics { contentDescription = strings.addChord }
             ) {
                 if (canAdd) viewModel.addChordSlot()
             }
@@ -174,17 +173,17 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             PanelChip(
-                text = if (isIt) "TONICA" else "TONIC",
+                text = strings.highlightTonic,
                 selected = state.highlightTonic,
                 modifier = Modifier.weight(1f)
             ) { viewModel.setHighlightTonic(!state.highlightTonic) }
             PanelChip(
-                text = if (isIt) "Tutti" else "All",
+                text = strings.allChords,
                 selected = !state.isolateSelectedSlot,
                 modifier = Modifier.weight(1f)
             ) { viewModel.setSlotIsolation(false) }
             PanelChip(
-                text = if (isIt) "Solo" else "Solo",
+                text = strings.soloChord,
                 selected = state.isolateSelectedSlot,
                 modifier = Modifier.weight(1f)
             ) { viewModel.setSlotIsolation(true) }
@@ -221,7 +220,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         modifier = Modifier
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(slot.color),
+                            .background(slot.color.copy(alpha = if (slot.isVisible) 1f else 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("${index + 1}", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -238,9 +237,12 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                     )
                     Text(
                         text = if (isExpanded) "▴" else "▾",
-                        color = slot.color,
+                        color = slot.color.copy(alpha = if (slot.isVisible) 1f else 0.4f),
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics {
+                            contentDescription = if (isExpanded) strings.collapseChord else strings.expandChord
+                        }
                     )
                 }
 
@@ -256,25 +258,33 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                     PanelChip(
                         text = if (slot.isVisible) "ON" else "OFF",
                         selected = slot.isVisible,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier
+                            .size(38.dp)
+                            .semantics { contentDescription = if (slot.isVisible) strings.hideChord else strings.showChord }
                     ) { viewModel.toggleSlotVisibility(slot.id) }
 
                     if (index > 0) {
                         PanelChip(
-                            text = if (isIt) "SU" else "UP",
+                            text = strings.moveUp,
                             selected = false,
                             modifier = Modifier.size(44.dp)
                         ) { viewModel.moveSlot(index, -1) }
                     }
                     if (index < state.triadSequenceSlots.size - 1) {
                         PanelChip(
-                            text = if (isIt) "GIÙ" else "DOWN",
+                            text = strings.moveDown,
                             selected = false,
                             modifier = Modifier.size(44.dp)
                         ) { viewModel.moveSlot(index, 1) }
                     }
                     if (state.triadSequenceSlots.size > 1) {
-                        PanelChip(text = "✕", selected = false, modifier = Modifier.size(28.dp)) {
+                        PanelChip(
+                            text = "−",
+                            selected = false,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .semantics { contentDescription = strings.removeChord }
+                        ) {
                             viewModel.removeChordSlot(slot.id)
                         }
                     }
@@ -282,7 +292,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
 
                 if (isExpanded) {
                     Spacer(Modifier.height(2.dp))
-                    Text(if (isIt) "TONICA" else "ROOT", color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(strings.rootNote, color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     Pitch.ALL.chunked(4).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
                             row.forEach { pitch ->
@@ -295,12 +305,12 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         }
                     }
 
-                    Text(if (isIt) "QUALITÀ" else "QUALITY", color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(strings.chordType, color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     TriadType.entries.chunked(3).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
                             row.forEach { type ->
                                 PanelChip(
-                                    text = if (isIt) type.title else type.englishTitle,
+                                    text = strings.triadTypeName(type),
                                     selected = slot.quality == type,
                                     modifier = Modifier.weight(1f)
                                 ) { viewModel.updateChordSlot(slot.id) { it.copy(quality = type) } }
@@ -309,12 +319,12 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         }
                     }
 
-                    Text(if (isIt) "RIVOLTO" else "INVERSION", color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(strings.inversion, color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     TriadInversion.entries.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
                             row.forEach { inv ->
                                 PanelChip(
-                                    text = if (isIt) inv.title else inv.englishTitle,
+                                    text = strings.triadInversionName(inv),
                                     selected = slot.inversion == inv,
                                     modifier = Modifier.weight(1f)
                                 ) { viewModel.updateChordSlot(slot.id) { it.copy(inversion = inv) } }
@@ -323,7 +333,7 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         }
                     }
 
-                    Text(if (isIt) "CORDE" else "STRINGS", color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(strings.fretboardStrings, color = MaterialTheme.colorScheme.tertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
                         listOf(6, 5, 4, 3).forEachIndexed { idx, baseString ->
                             PanelChip(
@@ -348,13 +358,13 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
     val diagrams = remember(root, selectedType, state.notation) {
         ChordDictionaryRepository.getDiagramsForChord(root, selectedType, state.notation)
     }
-    val isIt = italian(state)
+    val strings = UiStrings(state.language)
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 8.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        PanelSection(if (isIt) "TONICA" else "ROOT")
+        PanelSection(strings.rootNote)
         Pitch.ALL.chunked(4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { pitch ->
@@ -362,21 +372,17 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
                 }
             }
         }
-        PanelSection(if (isIt) "ACCORDATURA" else "TUNING")
+        PanelSection(strings.tuning)
         TuningSelector(
             selectedTuning = state.selectedTuning,
             onTuningSelected = viewModel::selectTuning,
             modifier = Modifier.fillMaxWidth()
         )
-        PanelSection(if (isIt) "CATEGORIA" else "CATEGORY")
+        PanelSection(strings.category)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             ChordCategory.entries.forEach { item ->
                 PanelChip(
-                    text = when (item) {
-                        ChordCategory.TRIADS -> if (isIt) "Triadi" else "Triads"
-                        ChordCategory.SEVENTHS -> if (isIt) "7e" else "7ths"
-                        ChordCategory.EXTENDED -> if (isIt) "Estesi" else "Extended"
-                    },
+                    text = strings.chordCategory(item),
                     selected = category == item,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -384,33 +390,42 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
                 }
             }
         }
-        PanelSection(if (isIt) "TIPO DI ACCORDO" else "CHORD TYPE")
+        PanelSection(strings.chordType)
         types.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { type ->
-                    PanelChip("${type.name} ${type.symbol}", selectedType.id == type.id, Modifier.weight(1f)) {
+                    PanelChip(
+                        text = strings.chordSymbol(type),
+                        selected = selectedType.id == type.id,
+                        modifier = Modifier.weight(1f).semantics { contentDescription = strings.chordTypeName(type) }
+                    ) {
                         viewModel.selectDictionaryType(type)
                     }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
+        val formula = strings.chordFormula(selectedType)
         Text(
-            text = "${root.getDisplayName(state.notation)} ${selectedType.symbol} · ${selectedType.description}",
+            text = "${root.getDisplayName(state.notation)} ${selectedType.symbol} · $formula".trim(),
             color = MaterialTheme.colorScheme.onBackground,
             fontSize = 12.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
                 .background(MaterialTheme.colorScheme.background).padding(9.dp)
         )
-        PanelSection(if (isIt) "POSIZIONI DISPONIBILI" else "AVAILABLE POSITIONS")
+        PanelSection(strings.positions)
         diagrams.chunked(2).forEachIndexed { rowIndex, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEachIndexed { columnIndex, diagram ->
                     val positionIndex = rowIndex * 2 + columnIndex
                     PanelChip(
-                        text = "${positionIndex + 1}. ${diagram.positionLabel}",
+                        text = "${positionIndex + 1}",
                         selected = state.selectedDictionaryPosition == positionIndex,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { contentDescription = diagram.positionLabel }
                     ) { viewModel.selectDictionaryPosition(positionIndex) }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -452,5 +467,3 @@ private fun PanelChip(text: String, selected: Boolean, modifier: Modifier = Modi
         overflow = TextOverflow.Ellipsis
     )
 }
-
-private fun italian(state: TriadUiState) = state.language == UiLanguage.ITALIAN

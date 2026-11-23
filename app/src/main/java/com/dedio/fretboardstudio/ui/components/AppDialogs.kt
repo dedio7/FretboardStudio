@@ -41,7 +41,7 @@ fun SettingsDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "⚙️ ${strings.settingsTitle}",
+                text = strings.settings,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
         },

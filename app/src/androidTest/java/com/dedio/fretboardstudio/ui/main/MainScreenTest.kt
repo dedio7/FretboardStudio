@@ -18,6 +18,6 @@ class MainScreenTest {
 
   @Test
   fun appTitle_exists() {
-    composeTestRule.onNodeWithText("Visualizer").assertExists()
+    composeTestRule.onNodeWithText("Fretboard Studio").assertExists()
   }
 }

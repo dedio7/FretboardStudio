@@ -7,6 +7,8 @@ import com.dedio.fretboardstudio.model.ScaleType
 import com.dedio.fretboardstudio.model.TriadType
 import com.dedio.fretboardstudio.ui.TriadViewModel
 import com.dedio.fretboardstudio.ui.VisualizerMode
+import com.dedio.fretboardstudio.ui.selectedChordSlot
+import com.dedio.fretboardstudio.ui.visibleChordSlots
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -167,5 +169,72 @@ class MainScreenViewModelTest {
 
         viewModel.setHighlightTonic(false)
         assertFalse(viewModel.uiState.first().highlightTonic)
+    }
+
+    @Test
+    fun headerAndSelectionFollowVisibleChordsWhenTheSelectedOneIsHidden() = runTest {
+        val viewModel = TriadViewModel()
+        viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+        viewModel.addChordSlot()
+        val firstId = viewModel.uiState.first().triadSequenceSlots.first().id
+        val secondId = viewModel.uiState.first().selectedSlotId
+
+        viewModel.toggleSlotVisibility(secondId)
+        val state = viewModel.uiState.first()
+
+        assertEquals(1, state.visibleChordSlots.size)
+        assertEquals(firstId, state.selectedChordSlot?.id)
+        assertEquals(Pitch(0), state.selectedRoot)
+    }
+
+    @Test
+    fun soloNeverLeavesAnEmptyNeckWhenTheSelectedChordIsHidden() = runTest {
+        val viewModel = TriadViewModel()
+        viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+        viewModel.addChordSlot()
+        val firstId = viewModel.uiState.first().triadSequenceSlots.first().id
+        val secondId = viewModel.uiState.first().selectedSlotId
+
+        viewModel.toggleSlotVisibility(secondId)
+        viewModel.setSlotIsolation(true)
+        val afterSolo = viewModel.uiState.first()
+        assertTrue(afterSolo.isolateSelectedSlot)
+        assertEquals(firstId, afterSolo.selectedSlotId)
+        assertTrue(afterSolo.allFretNotes.isNotEmpty())
+        assertTrue(afterSolo.allFretNotes.all { it.sharedOccupants.all { o -> o.slotId == firstId } })
+
+        // Hiding the isolated chord again must also keep at least one visible chord.
+        viewModel.toggleSlotVisibility(firstId)
+        val afterHidingAll = viewModel.uiState.first()
+        assertFalse(afterHidingAll.isolateSelectedSlot)
+        assertTrue(afterHidingAll.allFretNotes.isEmpty())
+    }
+
+    @Test
+    fun addingAChordSyncsHeaderFieldsEvenFromAnotherMode() = runTest {
+        val viewModel = TriadViewModel()
+        viewModel.selectRoot(Pitch(9))
+        viewModel.addChordSlot()
+
+        val state = viewModel.uiState.first()
+        val newSlot = state.triadSequenceSlots.last()
+        assertEquals(newSlot.id, state.selectedSlotId)
+        assertEquals(newSlot.id, state.expandedSlotId)
+        assertEquals(newSlot.root, state.selectedRoot)
+        assertEquals(newSlot.quality, state.selectedTriadType)
+    }
+
+    @Test
+    fun movingASlotWithAnInvalidIndexIsIgnored() = runTest {
+        val viewModel = TriadViewModel()
+        viewModel.setVisualizerMode(VisualizerMode.TRIADS)
+        val before = viewModel.uiState.first()
+
+        viewModel.moveSlot(-1, -1)
+        viewModel.moveSlot(99, 1)
+        viewModel.moveSlot(0, 5)
+
+        assertEquals(before.triadSequenceSlots, viewModel.uiState.first().triadSequenceSlots)
+        assertEquals(before.allFretNotes, viewModel.uiState.first().allFretNotes)
     }
 }

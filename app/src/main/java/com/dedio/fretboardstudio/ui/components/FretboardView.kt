@@ -73,11 +73,7 @@ import com.dedio.fretboardstudio.model.TriadRole
 import com.dedio.fretboardstudio.model.TriadType
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
 
-val NeonPink = Color(0xFFFF2A6D)
-val NeonGreen = Color(0xFF05FFA1)
-val NeonCyan = Color(0xFF00F0FF)
 val NeonGold = Color(0xFFFFD600)
 
 @Composable
