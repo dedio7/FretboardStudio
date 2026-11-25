@@ -13,7 +13,7 @@ import com.dedio.fretboardstudio.theme.TriadGuitarTheme
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-
+//Test
     enableEdgeToEdge()
     setContent {
       TriadGuitarTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
