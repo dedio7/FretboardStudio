@@ -146,6 +146,24 @@ class MetronomeViewModelTest {
     }
 
     @Test
+    fun metronomeCanBeHiddenWithoutStoppingTheClock() {
+        val engine = FakeEngine()
+        val viewModel = MetronomeViewModel { engine }
+
+        viewModel.togglePlay()
+        assertTrue(viewModel.uiState.value.isVisible)
+
+        viewModel.setVisible(false)
+        assertFalse(viewModel.uiState.value.isVisible)
+        assertTrue(viewModel.uiState.value.isPlaying)
+        assertEquals(0, engine.stopCount)
+
+        viewModel.toggleVisible()
+        assertTrue(viewModel.uiState.value.isVisible)
+        assertTrue(viewModel.uiState.value.isPlaying)
+    }
+
+    @Test
     fun metronomeStateNeverTouchesTriadState() {
         val engine = FakeEngine()
         val viewModel = MetronomeViewModel { engine }

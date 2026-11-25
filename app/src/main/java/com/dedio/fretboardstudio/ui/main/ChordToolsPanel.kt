@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -136,6 +137,11 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                     modifier = Modifier.weight(1f)
                 ) { viewModel.setDotLabelMode(mode) }
             }
+            PanelChip(
+                text = strings.highlightTonic,
+                selected = state.highlightTonic,
+                modifier = Modifier.weight(1f)
+            ) { viewModel.setHighlightTonic(!state.highlightTonic) }
         }
 
         PanelSection(strings.sequence)
@@ -166,17 +172,12 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
             }
         }
 
-        // View + tonic controls on a single row to save vertical space.
+        // Tonic now lives under "VISUALIZZAZIONE"; this row keeps only isolation.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PanelChip(
-                text = strings.highlightTonic,
-                selected = state.highlightTonic,
-                modifier = Modifier.weight(1f)
-            ) { viewModel.setHighlightTonic(!state.highlightTonic) }
             PanelChip(
                 text = strings.allChords,
                 selected = !state.isolateSelectedSlot,
@@ -207,12 +208,9 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Chord name gets the full width: never stack letters vertically when
-                // the panel is narrow.
+                // Title and ON/OFF sit together; the collapse caret moves to the far right.
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.toggleSlotExpanded(slot.id) },
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -223,11 +221,13 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                             .background(slot.color.copy(alpha = if (slot.isVisible) 1f else 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${index + 1}", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text((index + 1).toString(), color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                     Text(
                         text = chordTitle,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.toggleSlotExpanded(slot.id) },
                         color = if (slot.isVisible) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -235,19 +235,28 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
+                    PanelChip(
+                        text = if (slot.isVisible) "ON" else "OFF",
+                        selected = slot.isVisible,
+                        modifier = Modifier
+                            .height(28.dp)
+                            .widthIn(min = 36.dp)
+                            .semantics { contentDescription = if (slot.isVisible) strings.hideChord else strings.showChord }
+                    ) { viewModel.toggleSlotVisibility(slot.id) }
                     Text(
                         text = if (isExpanded) "▴" else "▾",
                         color = slot.color.copy(alpha = if (slot.isVisible) 1f else 0.4f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics {
-                            contentDescription = if (isExpanded) strings.collapseChord else strings.expandChord
-                        }
+                        modifier = Modifier
+                            .clickable { viewModel.toggleSlotExpanded(slot.id) }
+                            .semantics {
+                                contentDescription = if (isExpanded) strings.collapseChord else strings.expandChord
+                            }
                     )
                 }
 
-                // One compact action row: on/off, reorder, remove. The old ambiguous
-                // "solo" icon is gone (Solo/All above already controls isolation).
+                // Reorder/remove stay in their own row; visibility is in the header.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -255,14 +264,6 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PanelChip(
-                        text = if (slot.isVisible) "ON" else "OFF",
-                        selected = slot.isVisible,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .semantics { contentDescription = if (slot.isVisible) strings.hideChord else strings.showChord }
-                    ) { viewModel.toggleSlotVisibility(slot.id) }
-
                     if (index > 0) {
                         PanelChip(
                             text = strings.moveUp,
@@ -378,6 +379,20 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
             onTuningSelected = viewModel::selectTuning,
             modifier = Modifier.fillMaxWidth()
         )
+        PanelSection(strings.display)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+            listOf(
+                DotLabelMode.CLEAN to strings.clean,
+                DotLabelMode.NOTES to strings.notes,
+                DotLabelMode.INTERVALS to strings.intervals
+            ).forEach { (mode, label) ->
+                PanelChip(
+                    text = label,
+                    selected = state.dotLabelMode == mode,
+                    modifier = Modifier.weight(1f)
+                ) { viewModel.setDotLabelMode(mode) }
+            }
+        }
         PanelSection(strings.category)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             ChordCategory.entries.forEach { item ->

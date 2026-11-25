@@ -1,10 +1,22 @@
-*.iml
-.gradle
+# Gradle / Android
+.gradle/
 /local.properties
-/.idea/
-.DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Build output e artefatti di rilascio
+app/build/
+app/release/
+
+# Firma: mai versionare keystore o file di mapping
+app/Keystore/
+*.jks
+*.keystore
+*.aab

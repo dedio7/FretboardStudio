@@ -9,6 +9,7 @@ import com.dedio.fretboardstudio.model.TriadInversion
 import com.dedio.fretboardstudio.model.TriadRole
 import com.dedio.fretboardstudio.model.TriadType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -215,5 +216,29 @@ class MusicTheoryTest {
         assertEquals("MI", formula.thirdName)
         assertEquals("SOL", formula.fifthName)
         assertTrue(formula.summary.contains("DO Maggiore"))
+    }
+
+    @Test
+    fun suspendedTriadsUseTheirRealDegreeLabels() {
+        assertEquals("2", TriadRole.THIRD.getDegreeLabel(TriadType.SUS2))
+        assertEquals("4", TriadRole.THIRD.getDegreeLabel(TriadType.SUS4))
+        assertEquals("♭3", TriadRole.THIRD.getDegreeLabel(TriadType.MINOR))
+        assertEquals("3", TriadRole.THIRD.getDegreeLabel(TriadType.MAJOR))
+
+        val sus2 = TriadCalculator.buildFormulaExplanation(
+            rootPitch = Pitch(0),
+            triadType = TriadType.SUS2,
+            notation = NoteNotation.ITALIAN
+        )
+        val sus4 = TriadCalculator.buildFormulaExplanation(
+            rootPitch = Pitch(0),
+            triadType = TriadType.SUS4,
+            notation = NoteNotation.ITALIAN
+        )
+
+        assertTrue(sus2.firstIntervalDescription.contains("2ª Maggiore"))
+        assertFalse(sus2.firstIntervalDescription.contains("3ª Maggiore"))
+        assertTrue(sus4.firstIntervalDescription.contains("4ª Giusta"))
+        assertFalse(sus4.firstIntervalDescription.contains("3ª Maggiore"))
     }
 }

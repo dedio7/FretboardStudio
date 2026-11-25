@@ -54,6 +54,13 @@ class MetronomeViewModel(
 
     fun toggleExpanded() = setExpanded(!_uiState.value.isExpanded)
 
+    /** Hiding the pill never pauses the clock. */
+    fun setVisible(visible: Boolean) {
+        _uiState.update { it.copy(isVisible = visible) }
+    }
+
+    fun toggleVisible() = setVisible(!_uiState.value.isVisible)
+
     /** Averages the last taps so an unsteady hand does not swing the tempo wildly. */
     fun tapTempo(nowMillis: Long = System.currentTimeMillis()) {
         tapTimes.lastOrNull()?.let { lastTap ->
@@ -77,7 +84,7 @@ class MetronomeViewModel(
                 created.onBeat = ::onBeat
                 engine = created
             }
-            val (bpm, meter, accentBeat, _, _, _) = _uiState.value
+            val (bpm, meter, accentBeat, _, _, _, _) = _uiState.value
             metronome.start(bpm, meter, accentBeat)
             _uiState.update { it.copy(isPlaying = true, currentBeat = -1) }
         }
@@ -104,7 +111,7 @@ class MetronomeViewModel(
     /** Pushes the latest settings into an already running clock without restarting the beat. */
     private fun syncEngine() {
         engine?.let { metronome ->
-            val (bpm, meter, accentBeat, _, _, _) = _uiState.value
+            val (bpm, meter, accentBeat, _, _, _, _) = _uiState.value
             metronome.update(bpm, meter, accentBeat)
         }
     }

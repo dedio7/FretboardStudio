@@ -52,6 +52,8 @@ class UiStrings(private val language: UiLanguage) {
     val showTuningNotesDescription get() =
         if (language == UiLanguage.ITALIAN) "Mostra tutte le note dell’accordatura" else "Show all notes of the tuning"
     val metronome get() = if (language == UiLanguage.ITALIAN) "METRONOMO" else "METRONOME"
+    val hideMetronome get() = if (language == UiLanguage.ITALIAN) "Nascondi metronomo" else "Hide metronome"
+    val showMetronome get() = if (language == UiLanguage.ITALIAN) "Mostra metronomo" else "Show metronome"
     val playMetronome get() = if (language == UiLanguage.ITALIAN) "Avvia metronomo" else "Start metronome"
     val stopMetronome get() = if (language == UiLanguage.ITALIAN) "Ferma metronomo" else "Stop metronome"
     val tapTempo = "TAP TEMPO"

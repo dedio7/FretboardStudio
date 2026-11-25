@@ -119,9 +119,27 @@ fun MetronomeBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (state.isExpanded) "⌄" else "⌃",
+                        text = if (state.isExpanded) "⌃" else "⌄",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                         fontSize = 16.sp
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { viewModel.setVisible(false) }
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = strings.hideMetronome
+                            role = Role.Button
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "✕",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        fontSize = 12.sp
                     )
                 }
             }
@@ -206,7 +224,12 @@ private fun BeatDots(state: MetronomeUiState) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.semantics {
-            contentDescription = "${state.meter.label} · ${state.currentBeat + 1}/${state.meter.beatsPerBar}"
+            val beatText = if (state.isPlaying) {
+                "${state.currentBeat + 1}/${state.meter.beatsPerBar}"
+            } else {
+                "–/${state.meter.beatsPerBar}"
+            }
+            contentDescription = "${state.meter.label} · $beatText"
         }
     ) {
         (0 until state.meter.beatsPerBar).forEach { beat ->

@@ -1,22 +1,32 @@
 package com.dedio.fretboardstudio.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +49,9 @@ fun MainScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val metronomeViewModel: MetronomeViewModel = viewModel()
+    val metronomeState by metronomeViewModel.uiState.collectAsStateWithLifecycle()
+    var activePanel by rememberSaveable { mutableStateOf(SidePanel.CONTROLS) }
+    val strings = UiStrings(state.language)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Never keep a click loop running while the app is in the background.
@@ -67,7 +80,7 @@ fun MainScreen(
                     },
                     actions = {
                         TextButton(onClick = { viewModel.openSettingsDialog(open = true) }) {
-                            Text(UiStrings(state.language).settings, color = MaterialTheme.colorScheme.primary)
+                            Text(strings.settings, color = MaterialTheme.colorScheme.primary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -87,17 +100,54 @@ fun MainScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     ReferenceVisualizerContent(
                         viewModel = viewModel,
+                        activePanel = activePanel,
+                        onActivePanelChange = { activePanel = it },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                // Overlay: the fretboard keeps its full height.
-                MetronomeBar(
-                    viewModel = metronomeViewModel,
-                    language = state.language,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp),
-                )
+                // Keep the pill over the fretboard, not over an open side panel.
+                val metronomeModifier = Modifier
+                    .align(
+                        when (activePanel) {
+                            SidePanel.CHORDS -> Alignment.BottomStart
+                            SidePanel.CONTROLS -> Alignment.BottomEnd
+                            SidePanel.NONE -> Alignment.BottomCenter
+                        },
+                    )
+                    .padding(
+                        start = if (activePanel == SidePanel.CHORDS) 12.dp else 0.dp,
+                        end = if (activePanel == SidePanel.CONTROLS) 12.dp else 0.dp,
+                        bottom = 12.dp,
+                    )
+
+                if (metronomeState.isVisible) {
+                    MetronomeBar(
+                        viewModel = metronomeViewModel,
+                        language = state.language,
+                        modifier = metronomeModifier,
+                    )
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        tonalElevation = 3.dp,
+                        modifier = metronomeModifier
+                            .clickable { metronomeViewModel.setVisible(visible = true) }
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = strings.showMetronome
+                                role = Role.Button
+                            },
+                    ) {
+                        Text(
+                            text = "♫ " + strings.metronome,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
             }
 
             if (state.isSettingsDialogOpen) {

@@ -17,6 +17,8 @@ data class MetronomeUiState(
     /** Index of the lit beat, or -1 while stopped. */
     val currentBeat: Int = -1,
     val isExpanded: Boolean = false,
+    /** False while the floating bar is hidden; the clock keeps running. */
+    val isVisible: Boolean = true,
 ) {
     companion object {
         const val MIN_BPM = 40

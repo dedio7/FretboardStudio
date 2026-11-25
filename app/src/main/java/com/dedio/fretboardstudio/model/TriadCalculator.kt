@@ -285,7 +285,14 @@ object TriadCalculator {
 
         val summary = "$rootName ${triadType.title} ($rootName - $thirdName - $fifthName)"
 
-        val interval1Text = "$rootName + $thirdIntervalSt semitoni = $thirdName (${if (triadType.isMinorThird) "3ª Minore" else "3ª Maggiore"})"
+        val secondDegree = when (triadType.intervals[1]) {
+            2 -> "2ª Maggiore"
+            3 -> "3ª Minore"
+            4 -> "3ª Maggiore"
+            5 -> "4ª Giusta"
+            else -> "3ª Maggiore"
+        }
+        val interval1Text = "$rootName + $thirdIntervalSt semitoni = $thirdName ($secondDegree)"
         val interval2Text = "$thirdName + $fifthIntervalSt semitoni = $fifthName (${when {
             triadType.isDiminishedFifth -> "5ª Diminuita"
             triadType.isAugmentedFifth -> "5ª Aumentata"

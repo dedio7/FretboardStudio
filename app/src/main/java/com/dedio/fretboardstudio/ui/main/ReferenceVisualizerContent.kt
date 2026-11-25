@@ -26,10 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,20 +60,21 @@ import com.dedio.fretboardstudio.ui.components.TuningSelector
 private val VisualizerMuted = Color(0xFF777786)
 
 /** A single source of truth for the side panel: opening one always closes the other. */
-private enum class SidePanel { NONE, CONTROLS, CHORDS }
+enum class SidePanel { NONE, CONTROLS, CHORDS }
 
 @Composable
 fun ReferenceVisualizerContent(
     viewModel: TriadViewModel,
+    activePanel: SidePanel,
+    onActivePanelChange: (SidePanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state: TriadUiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val strings = UiStrings(state.language)
-    var activePanel by rememberSaveable { mutableStateOf(SidePanel.CONTROLS) }
     val focusManager = LocalFocusManager.current
 
     val closeChordPanel: () -> Unit = {
-        activePanel = SidePanel.NONE
+        onActivePanelChange(SidePanel.NONE)
         focusManager.clearFocus()
     }
 
@@ -314,7 +312,7 @@ fun ReferenceVisualizerContent(
                 triadType = state.selectedTriadType,
                 badgeDisplayMode = if (state.visualizerMode == VisualizerMode.TRIADS) BadgeDisplayMode.BOTH else BadgeDisplayMode.NOTE_ONLY,
                 dotLabelMode = when (state.visualizerMode) {
-                    VisualizerMode.DICTIONARY -> DotLabelMode.INTERVALS
+                    VisualizerMode.DICTIONARY -> state.dotLabelMode
                     VisualizerMode.SCALES -> if (state.showTuningNotes) DotLabelMode.NOTES else state.dotLabelMode
                     VisualizerMode.TRIADS -> state.dotLabelMode
                 },
@@ -348,7 +346,7 @@ fun ReferenceVisualizerContent(
                             closeChordPanel()
                         } else {
                             focusManager.clearFocus()
-                            activePanel = SidePanel.CHORDS
+                            onActivePanelChange(SidePanel.CHORDS)
                             // Keep the dictionary tab intact; only leave the Scale view.
                             if (state.visualizerMode == VisualizerMode.SCALES) {
                                 viewModel.setVisualizerMode(VisualizerMode.TRIADS)
@@ -382,10 +380,10 @@ fun ReferenceVisualizerContent(
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
                     .clickable {
                         if (activePanel == SidePanel.CONTROLS) {
-                            activePanel = SidePanel.NONE
+                            onActivePanelChange(SidePanel.NONE)
                         } else {
                             focusManager.clearFocus()
-                            activePanel = SidePanel.CONTROLS
+                            onActivePanelChange(SidePanel.CONTROLS)
                             // The left panel is exclusively the Scale panel.
                             viewModel.setVisualizerMode(VisualizerMode.SCALES)
                         }

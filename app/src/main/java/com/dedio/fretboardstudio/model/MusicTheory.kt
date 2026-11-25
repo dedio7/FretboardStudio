@@ -209,7 +209,12 @@ enum class TriadRole(
     fun getDegreeLabel(triadType: TriadType): String {
         return when (this) {
             ROOT -> "1"
-            THIRD -> if (triadType.isMinorThird) "♭3" else "3"
+            THIRD -> when (triadType.intervals[1]) {
+                2 -> "2"      // Sus2
+                3 -> "♭3"     // Minor, Diminished
+                5 -> "4"      // Sus4
+                else -> "3"   // Major, Augmented
+            }
             FIFTH -> when {
                 triadType.isDiminishedFifth -> "♭5"
                 triadType.isAugmentedFifth -> "♯5"
