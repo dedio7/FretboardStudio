@@ -11,7 +11,7 @@ android {
         applicationId = "com.dedio.fretboardstudio"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        versionCode = 3
         versionName = "1.0"
     }
 
