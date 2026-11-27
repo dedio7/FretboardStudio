@@ -81,6 +81,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(-1, 3, 2, 1, 1, 0)
                 "sus2" -> listOf(-1, 3, 0, 0, 1, 3)
                 "sus4" -> listOf(-1, 3, 3, 0, 1, 1)
+                "dom7" -> listOf(-1, 3, 2, 3, 1, 0)
+                "maj7" -> listOf(-1, 3, 2, 0, 0, 0)
+                "m7" -> listOf(-1, 3, 5, 3, 4, 3)
+                "m7b5" -> listOf(-1, 3, 4, 3, 4, -1)
+                "dim7" -> listOf(-1, 3, 4, 2, 4, 2)
+                "mMaj7" -> listOf(-1, 3, 5, 4, 4, 3)
+                "add9" -> listOf(-1, 3, 2, 0, 3, 0)
+                "6" -> listOf(-1, 3, 2, 2, 1, 0)
+                "m6" -> listOf(-1, 3, 2, 2, 1, 3)
+                "9" -> listOf(-1, 3, 2, 3, 3, 3)
+                "maj9" -> listOf(-1, 3, 2, 4, 3, 0)
+                "m9" -> listOf(-1, 3, 1, 3, 3, 3)
                 else -> listOf(-1, 3, 2, 0, 1, 0)
             }
             val posLabel = if (chordId == "min") "Posizione Aperta (Cm-Shape)" else if (chordId != "maj") "Posizione Aperta ($chordId-Shape)" else "Posizione Aperta (C-Shape)"
@@ -101,6 +113,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(-1, 0, 3, 2, 2, 1)
                 "sus2" -> listOf(-1, 0, 2, 2, 0, 0)
                 "sus4" -> listOf(-1, 0, 2, 2, 3, 0)
+                "dom7" -> listOf(-1, 0, 2, 0, 2, 0)
+                "maj7" -> listOf(-1, 0, 2, 1, 2, 0)
+                "m7" -> listOf(-1, 0, 2, 0, 1, 0)
+                "m7b5" -> listOf(-1, 0, 1, 0, 1, 0)
+                "dim7" -> listOf(-1, 0, 1, 2, 1, 2)
+                "mMaj7" -> listOf(-1, 0, 2, 1, 1, 0)
+                "add9" -> listOf(-1, 0, 2, 4, 2, 0)
+                "6" -> listOf(-1, 0, 2, 2, 2, 2)
+                "m6" -> listOf(-1, 0, 2, 2, 1, 2)
+                "9" -> listOf(-1, 0, 2, 1, 0, 0)
+                "maj9" -> listOf(-1, 0, 2, 1, 0, 2)
+                "m9" -> listOf(-1, 0, 2, 0, 0, 0)
                 else -> listOf(-1, 0, 2, 2, 2, 0)
             }
             val posLabel = if (chordId == "min") "Posizione Aperta (Am-Shape)" else if (chordId != "maj") "Posizione Aperta ($chordId-Shape)" else "Posizione Aperta (A-Shape)"
@@ -121,6 +145,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(0, 3, 2, 1, 1, 0)
                 "sus2" -> listOf(0, 2, 4, 4, 0, 0)
                 "sus4" -> listOf(0, 2, 2, 2, 0, 0)
+                "dom7" -> listOf(0, 2, 0, 1, 0, 0)
+                "maj7" -> listOf(0, 2, 1, 1, 0, 0)
+                "m7" -> listOf(0, 2, 2, 0, 3, 0)
+                "m7b5" -> listOf(0, 1, 2, 0, 2, 0)
+                "dim7" -> listOf(0, 1, 2, 0, 2, 3)
+                "mMaj7" -> listOf(0, 2, 2, 0, 0, 0)
+                "add9" -> listOf(0, 2, 4, 1, 0, 0)
+                "6" -> listOf(0, 2, 2, 1, 2, 0)
+                "m6" -> listOf(0, 2, 2, 0, 2, 0)
+                "9" -> listOf(0, 2, 0, 1, 0, 2)
+                "maj9" -> listOf(0, 2, 1, 1, 0, 2)
+                "m9" -> listOf(0, 2, 0, 0, 0, 2)
                 else -> listOf(0, 2, 2, 1, 0, 0)
             }
             val posLabel = if (chordId == "min") "Posizione Aperta (Em-Shape)" else if (chordId != "maj") "Posizione Aperta ($chordId-Shape)" else "Posizione Aperta (E-Shape)"
@@ -141,6 +177,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(3, 2, 1, 0, 0, 3)
                 "sus2" -> listOf(3, 0, 0, 0, 3, 3)
                 "sus4" -> listOf(3, 3, 0, 0, 1, 3)
+                "dom7" -> listOf(3, 2, 0, 0, 0, 1)
+                "maj7" -> listOf(3, 2, 0, 0, 0, 2)
+                "m7" -> listOf(3, 5, 3, 3, 3, 3)
+                "m7b5" -> listOf(3, 1, 3, 2, 2, 1)
+                "dim7" -> listOf(3, 4, 2, 3, 2, -1)
+                "mMaj7" -> listOf(3, 1, 0, 3, 3, 3)
+                "add9" -> listOf(3, 2, 0, 2, 0, 3)
+                "6" -> listOf(3, 2, 0, 2, 0, 0)
+                "m6" -> listOf(3, 1, 2, 2, 3, 3)
+                "9" -> listOf(3, 2, 3, 2, 3, 3)
+                "maj9" -> listOf(3, 2, 4, 2, 3, 3)
+                "m9" -> listOf(3, 1, 3, 3, 3, 3)
                 else -> listOf(3, 2, 0, 0, 0, 3)
             }
             val posLabel = if (chordId == "min") "Posizione Aperta (Gm-Shape)" else if (chordId != "maj") "Posizione Aperta ($chordId-Shape)" else "Posizione Aperta (G-Shape)"
@@ -161,6 +209,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(-1, -1, 0, 3, 3, 2)
                 "sus2" -> listOf(-1, -1, 0, 2, 3, 0)
                 "sus4" -> listOf(-1, -1, 0, 2, 3, 3)
+                "dom7" -> listOf(-1, -1, 0, 2, 1, 2)
+                "maj7" -> listOf(-1, -1, 0, 2, 2, 2)
+                "m7" -> listOf(-1, -1, 0, 2, 1, 1)
+                "m7b5" -> listOf(-1, -1, 0, 1, 1, 1)
+                "dim7" -> listOf(-1, -1, 0, 1, 0, 1)
+                "mMaj7" -> listOf(-1, -1, 0, 2, 1, 0)
+                "add9" -> listOf(-1, -1, 0, 2, 3, 0)
+                "6" -> listOf(-1, -1, 0, 2, 0, 2)
+                "m6" -> listOf(-1, -1, 0, 2, 1, 2)
+                "9" -> listOf(-1, -1, 0, 2, 1, 3)
+                "maj9" -> listOf(-1, -1, 0, 2, 1, 4)
+                "m9" -> listOf(-1, -1, 0, 2, 1, 3)
                 else -> listOf(-1, -1, 0, 2, 3, 2)
             }
             val posLabel = if (chordId == "min") "Posizione Aperta (Dm-Shape)" else if (chordId != "maj") "Posizione Aperta ($chordId-Shape)" else "Posizione Aperta (D-Shape)"
@@ -187,6 +247,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(-1, aFret, aFret + 3, aFret + 2, aFret + 1, aFret)
                 "sus2" -> listOf(-1, aFret, aFret + 2, aFret + 2, aFret, aFret)
                 "sus4" -> listOf(-1, aFret, aFret + 2, aFret + 2, aFret + 3, aFret)
+                "dom7" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 3, aFret)
+                "maj7" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 2, aFret)
+                "m7" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 1, aFret)
+                "m7b5" -> listOf(-1, aFret, aFret + 1, aFret + 1, aFret + 1, aFret)
+                "dim7" -> listOf(-1, aFret, aFret + 1, aFret + 2, aFret + 1, aFret)
+                "mMaj7" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 1, aFret)
+                "add9" -> listOf(-1, aFret, aFret + 2, aFret + 4, aFret + 2, aFret)
+                "6" -> listOf(-1, aFret, aFret + 2, aFret + 2, aFret + 2, aFret + 2)
+                "m6" -> listOf(-1, aFret, aFret + 2, aFret + 2, aFret + 1, aFret + 2)
+                "9" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 3, aFret + 3)
+                "maj9" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 2, aFret + 3)
+                "m9" -> listOf(-1, aFret, aFret + 2, aFret + 1, aFret + 1, aFret + 3)
                 else -> listOf(-1, aFret, aFret + 2, aFret + 2, aFret + 2, aFret)
             }
             diagrams.add(
@@ -194,7 +266,7 @@ object ChordDictionaryRepository {
                     title = fullTitle,
                     baseFret = aFret,
                     stringFrets = aFrets,
-                    fingerHints = listOf(0, 1, 2, 3, if (isMinor) 2 else 4, 1),
+                    fingerHints = listOf(0, 1, 2, 3, 4, 1),
                     barreFret = aFret,
                     cagedShape = CagedShape.A_SHAPE,
                     positionLabel = "Barrè Tasto $aFret (Forma A)"
@@ -211,6 +283,18 @@ object ChordDictionaryRepository {
                 "aug" -> listOf(eFret, eFret + 3, eFret + 2, eFret + 1, eFret + 1, eFret)
                 "sus2" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 2, eFret, eFret)
                 "sus4" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 2, eFret, eFret)
+                "dom7" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret + 3, eFret)
+                "maj7" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret + 4, eFret)
+                "m7" -> listOf(eFret, eFret + 2, eFret + 2, eFret, eFret + 3, eFret)
+                "m7b5" -> listOf(eFret, eFret + 2, eFret + 1, eFret, eFret + 3, eFret)
+                "dim7" -> listOf(eFret, eFret + 2, eFret + 1, eFret, eFret + 2, eFret)
+                "mMaj7" -> listOf(eFret, eFret + 2, eFret + 2, eFret, eFret + 4, eFret)
+                "add9" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret + 2, eFret)
+                "6" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret, eFret + 2)
+                "m6" -> listOf(eFret, eFret + 2, eFret + 2, eFret, eFret, eFret + 2)
+                "9" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret + 3, eFret + 3)
+                "maj9" -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret + 4, eFret + 3)
+                "m9" -> listOf(eFret, eFret + 2, eFret + 2, eFret, eFret + 3, eFret + 3)
                 else -> listOf(eFret, eFret + 2, eFret + 2, eFret + 1, eFret, eFret)
             }
             diagrams.add(
@@ -218,7 +302,7 @@ object ChordDictionaryRepository {
                     title = fullTitle,
                     baseFret = eFret,
                     stringFrets = eFrets,
-                    fingerHints = listOf(1, 3, 4, if (isMinor) 1 else 2, 1, 1),
+                    fingerHints = listOf(1, 3, 4, 2, 1, 1),
                     barreFret = eFret,
                     cagedShape = CagedShape.E_SHAPE,
                     positionLabel = "Barrè Tasto $eFret (Forma E)"

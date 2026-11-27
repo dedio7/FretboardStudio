@@ -501,7 +501,7 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { type ->
                     PanelChip(
-                        text = strings.chordSymbol(type),
+                        text = strings.chordTypeName(type),
                         selected = selectedType.id == type.id,
                         modifier = Modifier.weight(1f).semantics { contentDescription = strings.chordTypeName(type) }
                     ) {
