@@ -247,11 +247,12 @@ fun ReferenceVisualizerContent(
                     .fillMaxHeight()
             ) {
             val boardWidth = maxWidth.coerceAtMost((maxHeight * 0.42f).coerceAtMost(320.dp))
-            val dictionaryDiagrams = remember(state.selectedDictionaryRoot, state.selectedDictionaryType, state.notation) {
+            val dictionaryDiagrams = remember(state.selectedDictionaryRoot, state.selectedDictionaryType, state.notation, state.selectedTuning) {
                 ChordDictionaryRepository.getDiagramsForChord(
                     state.selectedDictionaryRoot,
                     state.selectedDictionaryType,
-                    state.notation
+                    state.notation,
+                    state.selectedTuning
                 )
             }
             val fretboardNotes = when (state.visualizerMode) {
@@ -410,7 +411,6 @@ fun ReferenceVisualizerContent(
                 ChordToolsPanel(
                     state = state,
                     viewModel = viewModel,
-                    onClose = closeChordPanel,
                     modifier = Modifier
                         .weight(chordPanelWeight.coerceAtLeast(0.001f))
                         .graphicsLayer {

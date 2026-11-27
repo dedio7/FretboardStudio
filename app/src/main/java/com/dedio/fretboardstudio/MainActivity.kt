@@ -13,6 +13,7 @@ import com.dedio.fretboardstudio.theme.TriadGuitarTheme
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    com.dedio.fretboardstudio.model.PresetRepository.init(applicationContext)
 
     enableEdgeToEdge()
     setContent {

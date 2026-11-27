@@ -56,6 +56,12 @@ data class ChordOccupant(
     val color: Color get() = Color(colorHex)
 }
 
+data class ChordPreset(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val name: String,
+    val slots: List<ChordSlot>
+)
+
 object TriadSequenceAggregator {
 
     /**

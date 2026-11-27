@@ -2,7 +2,9 @@ package com.dedio.fretboardstudio.ui
 
 import androidx.lifecycle.ViewModel
 import com.dedio.fretboardstudio.model.ChordDictionaryRepository
+import com.dedio.fretboardstudio.model.ChordPreset
 import com.dedio.fretboardstudio.model.ChordSlot
+import com.dedio.fretboardstudio.model.PresetRepository
 import com.dedio.fretboardstudio.model.ChordTypeInfo
 import com.dedio.fretboardstudio.model.DotLabelMode
 import com.dedio.fretboardstudio.model.FretNote
@@ -66,6 +68,10 @@ data class TriadUiState(
     val isolateSelectedSlot: Boolean = false,
     /** Draw a dedicated indicator on root/tonic notes. */
     val highlightTonic: Boolean = false,
+    val isPresetsExpanded: Boolean = false,
+    val editingPresetId: String? = null,
+    val renameInputText: String = "",
+    val savedPresets: List<ChordPreset> = PresetRepository.getPresets(),
 )
 
 /** Chords that actually contribute markers to the fretboard. */
@@ -416,5 +422,85 @@ class TriadViewModel : ViewModel() {
             )
         }
         recalculate()
+    }
+
+    fun saveCurrentPreset(name: String = "Progressione ${_uiState.value.savedPresets.size + 1}") {
+        val newPreset = ChordPreset(
+            name = name,
+            slots = _uiState.value.triadSequenceSlots.mapIndexed { idx, slot ->
+                slot.copy(id = java.util.UUID.randomUUID().toString(), slotIndex = idx)
+            }
+        )
+        PresetRepository.savePreset(newPreset)
+        _uiState.update { current ->
+            current.copy(savedPresets = PresetRepository.getPresets())
+        }
+        recalculate()
+    }
+
+    fun loadPreset(preset: ChordPreset) {
+        _uiState.update { current ->
+            val loadedSlots = preset.slots.mapIndexed { idx, slot ->
+                slot.copy(id = java.util.UUID.randomUUID().toString(), slotIndex = idx)
+            }
+            current.copy(
+                visualizerMode = VisualizerMode.TRIADS,
+                triadSequenceSlots = loadedSlots,
+                selectedSlotId = loadedSlots.firstOrNull()?.id ?: DEFAULT_SLOT_ID,
+                expandedSlotId = loadedSlots.firstOrNull()?.id,
+                lastTappedNote = null
+            ).syncedTo(loadedSlots.firstOrNull())
+        }
+        recalculate()
+    }
+
+    fun startRenamingPreset(presetId: String, currentName: String) {
+        _uiState.update { it.copy(editingPresetId = presetId, renameInputText = currentName) }
+    }
+
+    fun updateRenameInput(text: String) {
+        _uiState.update { it.copy(renameInputText = text) }
+    }
+
+    fun finishRenamingPreset() {
+        val editingId = _uiState.value.editingPresetId ?: return
+        val newName = _uiState.value.renameInputText.trim()
+        if (newName.isNotEmpty()) {
+            PresetRepository.renamePreset(editingId, newName)
+            _uiState.update { current ->
+                current.copy(
+                    savedPresets = PresetRepository.getPresets(),
+                    editingPresetId = null,
+                    renameInputText = ""
+                )
+            }
+        } else {
+            cancelRenamingPreset()
+        }
+    }
+
+    fun cancelRenamingPreset() {
+        _uiState.update { it.copy(editingPresetId = null, renameInputText = "") }
+    }
+
+    fun togglePresetsExpanded() {
+        _uiState.update { it.copy(isPresetsExpanded = !it.isPresetsExpanded) }
+    }
+
+    fun updatePresetWithCurrentSequence(presetId: String) {
+        val currentSlots = _uiState.value.triadSequenceSlots.mapIndexed { idx, slot ->
+            slot.copy(id = java.util.UUID.randomUUID().toString(), slotIndex = idx)
+        }
+        PresetRepository.updatePreset(presetId, currentSlots)
+        _uiState.update { current ->
+            current.copy(savedPresets = PresetRepository.getPresets())
+        }
+    }
+
+    fun deletePreset(presetId: String) {
+        PresetRepository.deletePreset(presetId)
+        _uiState.update { current ->
+            current.copy(savedPresets = PresetRepository.getPresets())
+        }
     }
 }

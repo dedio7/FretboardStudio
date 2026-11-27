@@ -1,5 +1,6 @@
 package com.dedio.fretboardstudio.ui.main
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,8 +20,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.dedio.fretboardstudio.model.UiLanguage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -54,7 +59,6 @@ fun ChordToolsPanel(
     state: TriadUiState,
     viewModel: TriadViewModel,
     modifier: Modifier = Modifier,
-    onClose: () -> Unit = {},
 ) {
     val strings = UiStrings(state.language)
     // Derived from the ViewModel so the tab cannot drift out of sync when the panel
@@ -78,26 +82,6 @@ fun ChordToolsPanel(
             }
             PanelChip(strings.dictionaryTab, selectedTab == ChordToolsTab.DICTIONARY, Modifier.weight(1f)) {
                 viewModel.setVisualizerMode(com.dedio.fretboardstudio.ui.VisualizerMode.DICTIONARY)
-            }
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.background)
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
-                    .clickable(onClick = onClose)
-                    .semantics(mergeDescendants = true) {
-                        contentDescription = strings.closeChordPanel
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "✕",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
 
@@ -142,6 +126,87 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                 selected = state.highlightTonic,
                 modifier = Modifier.weight(1f)
             ) { viewModel.setHighlightTonic(!state.highlightTonic) }
+        }
+
+        // Collapsible Presets Section (placed below Display and above Sequence)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { viewModel.togglePresetsExpanded() }
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PanelSection(strings.presets)
+            Text(
+                text = if (state.isPresetsExpanded) "▴" else "▾",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
+
+        AnimatedVisibility(visible = state.isPresetsExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                state.savedPresets.forEach { preset ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.background)
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .clickable { viewModel.loadPreset(preset) }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = preset.name,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            PanelChip(
+                                text = "💾",
+                                selected = false,
+                                modifier = Modifier.size(28.dp).semantics { contentDescription = strings.updatePreset }
+                            ) {
+                                viewModel.updatePresetWithCurrentSequence(preset.id)
+                            }
+                            PanelChip(
+                                text = "✏️",
+                                selected = false,
+                                modifier = Modifier.size(28.dp).semantics { contentDescription = strings.rename }
+                            ) {
+                                viewModel.startRenamingPreset(preset.id, preset.name)
+                            }
+                            PanelChip(
+                                text = "✕",
+                                selected = false,
+                                modifier = Modifier.size(28.dp).semantics { contentDescription = strings.delete }
+                            ) {
+                                viewModel.deletePreset(preset.id)
+                            }
+                        }
+                    }
+                }
+                PanelChip(
+                    text = "+ " + strings.savePreset,
+                    selected = false,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    viewModel.saveCurrentPreset()
+                }
+            }
         }
 
         PanelSection(strings.sequence)
@@ -190,6 +255,32 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
             ) { viewModel.setSlotIsolation(true) }
         }
 
+        if (state.editingPresetId != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelRenamingPreset() },
+                title = { Text(strings.renamePreset) },
+                text = {
+                    OutlinedTextField(
+                        value = state.renameInputText,
+                        onValueChange = { viewModel.updateRenameInput(it) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.presetName) }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.finishRenamingPreset() }) {
+                        Text(if (state.language == UiLanguage.ITALIAN) "Salva" else "Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelRenamingPreset() }) {
+                        Text(strings.close)
+                    }
+                }
+            )
+        }
+
         // Slots list
         state.triadSequenceSlots.forEachIndexed { index, slot ->
             val isExpanded = expandedSlotId == slot.id
@@ -199,19 +290,21 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(
+                        if (isExpanded) slot.color.copy(alpha = 0.08f)
+                        else MaterialTheme.colorScheme.background
+                    )
                     .border(
                         width = if (isExpanded) 1.5.dp else 1.dp,
-                        color = slot.color.copy(alpha = if (slot.isVisible) 0.8f else 0.3f),
+                        color = slot.color.copy(alpha = if (slot.isVisible) 0.9f else 0.3f),
                         shape = RoundedCornerShape(10.dp)
                     )
                     .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Title and ON/OFF sit together; the collapse caret moves to the far right.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -235,6 +328,26 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (index > 0) {
+                        PanelChip(
+                            text = "▲",
+                            selected = false,
+                            modifier = Modifier
+                                .height(28.dp)
+                                .widthIn(min = 28.dp)
+                                .semantics { contentDescription = strings.moveUp }
+                        ) { viewModel.moveSlot(index, -1) }
+                    }
+                    if (index < state.triadSequenceSlots.size - 1) {
+                        PanelChip(
+                            text = "▼",
+                            selected = false,
+                            modifier = Modifier
+                                .height(28.dp)
+                                .widthIn(min = 28.dp)
+                                .semantics { contentDescription = strings.moveDown }
+                        ) { viewModel.moveSlot(index, 1) }
+                    }
                     PanelChip(
                         text = if (slot.isVisible) "ON" else "OFF",
                         selected = slot.isVisible,
@@ -243,6 +356,18 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                             .widthIn(min = 36.dp)
                             .semantics { contentDescription = if (slot.isVisible) strings.hideChord else strings.showChord }
                     ) { viewModel.toggleSlotVisibility(slot.id) }
+                    if (state.triadSequenceSlots.size > 1) {
+                        PanelChip(
+                            text = "X",
+                            selected = false,
+                            modifier = Modifier
+                                .height(28.dp)
+                                .widthIn(min = 28.dp)
+                                .semantics { contentDescription = strings.removeChord }
+                        ) {
+                            viewModel.removeChordSlot(slot.id)
+                        }
+                    }
                     Text(
                         text = if (isExpanded) "▴" else "▾",
                         color = slot.color.copy(alpha = if (slot.isVisible) 1f else 0.4f),
@@ -250,45 +375,11 @@ private fun TriadControls(state: TriadUiState, viewModel: TriadViewModel) {
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .clickable { viewModel.toggleSlotExpanded(slot.id) }
+                            .padding(horizontal = 2.dp)
                             .semantics {
                                 contentDescription = if (isExpanded) strings.collapseChord else strings.expandChord
                             }
                     )
-                }
-
-                // Reorder/remove stay in their own row; visibility is in the header.
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (index > 0) {
-                        PanelChip(
-                            text = strings.moveUp,
-                            selected = false,
-                            modifier = Modifier.size(44.dp)
-                        ) { viewModel.moveSlot(index, -1) }
-                    }
-                    if (index < state.triadSequenceSlots.size - 1) {
-                        PanelChip(
-                            text = strings.moveDown,
-                            selected = false,
-                            modifier = Modifier.size(44.dp)
-                        ) { viewModel.moveSlot(index, 1) }
-                    }
-                    if (state.triadSequenceSlots.size > 1) {
-                        PanelChip(
-                            text = "−",
-                            selected = false,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .semantics { contentDescription = strings.removeChord }
-                        ) {
-                            viewModel.removeChordSlot(slot.id)
-                        }
-                    }
                 }
 
                 if (isExpanded) {
@@ -356,8 +447,8 @@ private fun ChordDictionaryControls(state: TriadUiState, viewModel: TriadViewMod
     val selectedType = state.selectedDictionaryType
     val category = selectedType.category
     val types = ChordDictionaryRepository.ALL_TYPES.filter { it.category == category }
-    val diagrams = remember(root, selectedType, state.notation) {
-        ChordDictionaryRepository.getDiagramsForChord(root, selectedType, state.notation)
+    val diagrams = remember(root, selectedType, state.notation, state.selectedTuning) {
+        ChordDictionaryRepository.getDiagramsForChord(root, selectedType, state.notation, state.selectedTuning)
     }
     val strings = UiStrings(state.language)
 

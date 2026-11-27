@@ -43,7 +43,6 @@ open class MetronomeEngine(
     private var beatJob: Job? = null
     @Volatile private var running = false
     private var released = false
-    private var audioUnavailable = false
 
     /** Safe to call while the clock is running; the next beat picks up the new settings. */
     open fun update(bpm: Int, meter: MetronomeMeter, accentBeat: Int?) {
@@ -66,7 +65,14 @@ open class MetronomeEngine(
                 val beatsInBar = currentMeter.beatsPerBar
                 if (beat >= beatsInBar) beat = 0
                 playClick(accent = currentAccentBeat == beat)
-                onBeat(beat)
+                
+                val currentBeatCopy = beat
+                scope.launch {
+                    delay(40.milliseconds)
+                    if (running && !released) {
+                        onBeat(currentBeatCopy)
+                    }
+                }
 
                 beat = (beat + 1) % beatsInBar
                 val intervalNs = 60_000_000_000L / currentBpm
@@ -102,14 +108,29 @@ open class MetronomeEngine(
     }
 
     private fun playClick(accent: Boolean) {
-        if (released || !running || audioUnavailable) return
-        val bytes = if (accent) accentClickBytes else normalClickBytes
+        if (released || !running) return
+        val rawBytes = if (accent) accentClickBytes else normalClickBytes
+
+        val minBufferSize = AudioTrack.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        val bufferSize = maxOf(rawBytes.size, if (minBufferSize > 0) minBufferSize else rawBytes.size)
+        val bytes = if (bufferSize > rawBytes.size) {
+            val padded = ByteArray(bufferSize)
+            System.arraycopy(rawBytes, 0, padded, 0, rawBytes.size)
+            padded
+        } else {
+            rawBytes
+        }
+
         val click = try {
             AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build(),
                 )
                 .setAudioFormat(
@@ -123,7 +144,6 @@ open class MetronomeEngine(
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
         } catch (_: Exception) {
-            audioUnavailable = true
             return
         }
 
@@ -131,12 +151,10 @@ open class MetronomeEngine(
             click.write(bytes, 0, bytes.size)
         } catch (_: Exception) {
             runCatching { click.release() }
-            audioUnavailable = true
             return
         }
         if (written < bytes.size) {
             runCatching { click.release() }
-            audioUnavailable = true
             return
         }
 
@@ -146,7 +164,7 @@ open class MetronomeEngine(
         }
         activeClicks.add(click)
         click.play()
-        val releaseAfterMs = (((bytes.size / 2) * 1_000L) / sampleRate) + RELEASE_MARGIN_MS
+        val releaseAfterMs = (((rawBytes.size / 2) * 1_000L) / sampleRate) + RELEASE_MARGIN_MS
         scope.launch {
             delay(releaseAfterMs.milliseconds)
             releaseClick(click)
@@ -168,15 +186,16 @@ open class MetronomeEngine(
 
     /** Short sine blip with a squared fade so there is no click at the buffer edges. */
     private fun clickBytes(accent: Boolean): ByteArray {
-        val durationSeconds = if (accent) 0.075 else 0.045
-        val frequency = if (accent) 1_800.0 else 1_100.0
+        val durationSeconds = if (accent) 0.070 else 0.040
+        val frequency = if (accent) 2_000.0 else 1_000.0
+        val amplitude = if (accent) 0.80 else 0.50
         val sampleCount = (sampleRate * durationSeconds).toInt()
         val bytes = ByteArray(sampleCount * 2)
         for (index in 0 until sampleCount) {
             val progress = index.toDouble() / sampleCount
             val envelope = (1.0 - progress) * (1.0 - progress)
             val wave = sin(2.0 * PI * frequency * (index.toDouble() / sampleRate))
-            val sample = (wave * envelope * Short.MAX_VALUE * 0.55).toInt().toShort()
+            val sample = (wave * envelope * Short.MAX_VALUE * amplitude).toInt().toShort()
             bytes[index * 2] = sample.toByte()
             bytes[(index * 2) + 1] = (sample.toInt() shr 8).toByte()
         }

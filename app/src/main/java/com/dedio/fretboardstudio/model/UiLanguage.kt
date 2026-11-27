@@ -89,6 +89,14 @@ class UiStrings(private val language: UiLanguage) {
     fun triadInversionName(inversion: TriadInversion) =
         if (language == UiLanguage.ITALIAN) inversion.title else inversion.englishTitle
 
+    val savePreset get() = if (language == UiLanguage.ITALIAN) "Salva preset" else "Save Preset"
+    val updatePreset get() = if (language == UiLanguage.ITALIAN) "Aggiorna con sequenza corrente" else "Update with current sequence"
+    val presets get() = if (language == UiLanguage.ITALIAN) "PRESET" else "Presets"
+    val rename get() = if (language == UiLanguage.ITALIAN) "Rinomina" else "Rename"
+    val delete get() = if (language == UiLanguage.ITALIAN) "Elimina" else "Delete"
+    val renamePreset get() = if (language == UiLanguage.ITALIAN) "Rinomina preset" else "Rename preset"
+    val presetName get() = if (language == UiLanguage.ITALIAN) "Nome del preset" else "Preset name"
+
     fun chordCount(count: Int) =
         if (language == UiLanguage.ITALIAN) " · $count accordi" else " · $count chords"
 
@@ -96,6 +104,7 @@ class UiStrings(private val language: UiLanguage) {
         ChordCategory.TRIADS -> if (language == UiLanguage.ITALIAN) "Triadi" else "Triads"
         ChordCategory.SEVENTHS -> if (language == UiLanguage.ITALIAN) "7ª" else "7ths"
         ChordCategory.EXTENDED -> if (language == UiLanguage.ITALIAN) "Estesi" else "Extended"
+        ChordCategory.POWERCHORDS -> if (language == UiLanguage.ITALIAN) "Powerchords" else "Powerchords"
     }
 
     /** Compact, language-neutral chord symbol; the verbose name remains in the content description. */
